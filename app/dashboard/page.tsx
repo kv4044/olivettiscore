@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { logout } from '../login/actions'
 import { LogOut, User, ShieldCheck, Mail, Calendar, KeyRound } from 'lucide-react'
 
@@ -144,10 +145,16 @@ export default async function DashboardPage() {
               </div>
             </div>
 
-            <div className="mt-8">
+            <div className="mt-8 space-y-3">
               <button className="w-full py-3 px-4 rounded-xl font-semibold bg-zinc-800 hover:bg-zinc-700 text-white text-sm transition-all duration-300 active:scale-[0.98]">
                 Iniciar Novo Teste
               </button>
+              <Link 
+                href="/dashboard/test-api"
+                className="w-full py-3 px-4 rounded-xl font-semibold bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-sm text-center block transition-all duration-300 active:scale-[0.98] cursor-pointer"
+              >
+                Testar API Bzzoiro (Live)
+              </Link>
             </div>
           </div>
 
