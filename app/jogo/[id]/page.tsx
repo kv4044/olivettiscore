@@ -151,7 +151,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[400px] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Mini-Header de navegação */}
-      <header className="z-10 border-b border-zinc-900 bg-zinc-950/40 backdrop-blur-md sticky top-0">
+      <header className="z-50 border-b border-zinc-900 bg-zinc-950/40 backdrop-blur-md sticky top-0">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link
             href="/"

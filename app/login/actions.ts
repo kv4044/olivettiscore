@@ -42,9 +42,13 @@ export async function signup(prevState: ActionState, formData: FormData): Promis
 
   const email = formData.get('email') as string
   const password = formData.get('password') as string
+  const firstName = formData.get('first_name') as string
+  const lastName = formData.get('last_name') as string
+  const birthDate = formData.get('birth_date') as string
+  const gender = formData.get('gender') as string
 
-  if (!email || !password) {
-    return { error: 'E-mail e palavra-passe são obrigatórios.' }
+  if (!email || !password || !firstName || !lastName || !birthDate || !gender) {
+    return { error: 'Todos os campos são obrigatórios para registo.' }
   }
 
   if (password.length < 6) {
@@ -54,6 +58,14 @@ export async function signup(prevState: ActionState, formData: FormData): Promis
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      data: {
+        first_name: firstName,
+        last_name: lastName,
+        birth_date: birthDate,
+        gender: gender
+      }
+    }
   })
 
   if (error) {

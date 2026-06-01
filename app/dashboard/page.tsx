@@ -40,14 +40,27 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
-  // 2. Procurar Detalhes do Perfil (Pontos do Utilizador)
+  // 2. Procurar Detalhes do Perfil
   const { data: profile } = await supabase
     .from('profiles')
-    .select('points')
+    .select('points, first_name, last_name, birth_date, gender')
     .eq('id', user.id)
     .maybeSingle()
 
   const userPoints = profile?.points || 0
+  const firstName = profile?.first_name || user.user_metadata?.first_name || ''
+  const lastName = profile?.last_name || user.user_metadata?.last_name || ''
+  const fullName = firstName && lastName ? `${firstName} ${lastName}` : ''
+  const gender = profile?.gender || user.user_metadata?.gender || 'Não divulgado'
+  const rawBirthDate = profile?.birth_date || user.user_metadata?.birth_date
+  const formattedBirthDate = rawBirthDate
+    ? new Date(rawBirthDate).toLocaleDateString('pt-PT', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC'
+      })
+    : 'Não especificada'
 
   // 3. Obter Classificação Geral (Leaderboard) - Top 10 utilizadores
   const { data: leaderboardData } = await supabase
@@ -135,7 +148,7 @@ export default async function DashboardPage() {
       <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header/Navbar */}
-      <header className="z-10 border-b border-zinc-900 bg-zinc-950/40 backdrop-blur-md sticky top-0">
+      <header className="z-50 border-b border-zinc-900 bg-zinc-950/40 backdrop-blur-md sticky top-0">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link
@@ -145,7 +158,9 @@ export default async function DashboardPage() {
               <ArrowLeft className="w-4 h-4" />
             </Link>
             <div>
-              <h1 className="font-extrabold text-base leading-none">Painel Olivetti Score</h1>
+              <h1 className="font-extrabold text-base leading-none">
+                {firstName ? `Olá, ${firstName}!` : 'Painel Olivetti Score'}
+              </h1>
               <p className="text-[10px] text-zinc-500 mt-1">Gere as tuas apostas e a tua conta</p>
             </div>
           </div>
@@ -202,28 +217,54 @@ export default async function DashboardPage() {
           {/* Cartão de Conta do Utilizador */}
           <div className="md:col-span-2 backdrop-blur-xl bg-zinc-900/40 border border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Nome e Apelido */}
               <div className="flex items-center gap-3 p-3 rounded-2xl bg-zinc-950/40 border border-zinc-850">
                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
-                  <Mail className="w-4 h-4" />
+                  <User className="w-4 h-4" />
                 </div>
-                <div className="truncate">
-                  <p className="text-[9px] text-zinc-500 uppercase tracking-wider font-bold">E-mail</p>
-                  <p className="text-xs font-semibold text-zinc-300 truncate mt-0.5">{user.email}</p>
+                <div>
+                  <p className="text-[9px] text-zinc-550 uppercase tracking-wider font-bold">Nome e Apelido</p>
+                  <p className="text-xs font-semibold text-zinc-200 mt-0.5">
+                    {fullName || 'Não especificado'}
+                  </p>
                 </div>
               </div>
 
+              {/* Data de Nascimento */}
+              <div className="flex items-center gap-3 p-3 rounded-2xl bg-zinc-950/40 border border-zinc-850">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-[9px] text-zinc-550 uppercase tracking-wider font-bold">Data de Nascimento</p>
+                  <p className="text-xs font-semibold text-zinc-200 mt-0.5">{formattedBirthDate}</p>
+                </div>
+              </div>
+
+              {/* Membro Desde */}
               <div className="flex items-center gap-3 p-3 rounded-2xl bg-zinc-950/40 border border-zinc-850">
                 <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400">
                   <Calendar className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-[9px] text-zinc-500 uppercase tracking-wider font-bold">Membro Desde</p>
-                  <p className="text-xs font-semibold text-zinc-300 mt-0.5">{joinDate}</p>
+                  <p className="text-[9px] text-zinc-550 uppercase tracking-wider font-bold">Membro Desde</p>
+                  <p className="text-xs font-semibold text-zinc-200 mt-0.5">{joinDate}</p>
+                </div>
+              </div>
+
+              {/* Email */}
+              <div className="flex items-center gap-3 p-3 rounded-2xl bg-zinc-950/40 border border-zinc-850">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <div className="truncate">
+                  <p className="text-[9px] text-zinc-550 uppercase tracking-wider font-bold">E-mail</p>
+                  <p className="text-xs font-semibold text-zinc-300 truncate mt-0.5">{user.email}</p>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 sm:mt-0 p-3 rounded-2xl bg-zinc-950/20 border border-zinc-850/60 text-xxs text-zinc-500 flex items-center gap-2">
+            <div className="mt-4 p-3 rounded-2xl bg-zinc-950/20 border border-zinc-850/60 text-xxs text-zinc-500 flex items-center gap-2">
               <User className="w-3.5 h-3.5 text-zinc-600" />
               <span>UID: <span className="font-mono text-zinc-400 select-all">{user.id}</span></span>
             </div>

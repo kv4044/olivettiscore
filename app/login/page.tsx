@@ -51,8 +51,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md z-10">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/20 mb-3 border border-white/10">
-            <span className="text-2xl font-black tracking-wider text-white">OS</span>
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl overflow-hidden shadow-lg shadow-indigo-500/20 mb-3 border border-white/10 bg-zinc-900">
+            <img src="/logo.png" alt="Olivetti Score Logo" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-zinc-200 to-zinc-400">
             Olivetti Score
@@ -114,6 +114,78 @@ export default function LoginPage() {
 
           {/* Form */}
           <form action={formAction} className="space-y-5">
+            {/* Campos de Registo Adicionais */}
+            {!isLogin && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Primeiro Nome */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="first_name" className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                      Primeiro Nome
+                    </label>
+                    <input
+                      id="first_name"
+                      name="first_name"
+                      type="text"
+                      required={!isLogin}
+                      placeholder="João"
+                      className="w-full px-4 py-3 bg-zinc-950/60 border border-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-zinc-100 placeholder-zinc-650 focus:outline-none transition-all"
+                    />
+                  </div>
+
+                  {/* Apelido */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="last_name" className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                      Apelido
+                    </label>
+                    <input
+                      id="last_name"
+                      name="last_name"
+                      type="text"
+                      required={!isLogin}
+                      placeholder="Silva"
+                      className="w-full px-4 py-3 bg-zinc-950/60 border border-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-zinc-100 placeholder-zinc-650 focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Data de Nascimento */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="birth_date" className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                      Nascimento
+                    </label>
+                    <input
+                      id="birth_date"
+                      name="birth_date"
+                      type="date"
+                      required={!isLogin}
+                      className="w-full px-4 py-3 bg-zinc-950/60 border border-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-zinc-100 focus:outline-none transition-all text-xs"
+                    />
+                  </div>
+
+                  {/* Género */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="gender" className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                      Género
+                    </label>
+                    <select
+                      id="gender"
+                      name="gender"
+                      required={!isLogin}
+                      defaultValue=""
+                      className="w-full px-3 py-3.5 bg-zinc-950/60 border border-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-zinc-100 focus:outline-none transition-all text-xs font-semibold"
+                    >
+                      <option value="" disabled className="text-zinc-600">Seleciona...</option>
+                      <option value="Masculino" className="bg-zinc-900 text-zinc-100">Masculino</option>
+                      <option value="Feminino" className="bg-zinc-900 text-zinc-100">Feminino</option>
+                      <option value="Prefiro não divulgar" className="bg-zinc-900 text-zinc-100">Prefiro não divulgar</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Email Field */}
             <div className="space-y-1.5">
               <label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-zinc-400">

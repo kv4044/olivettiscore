@@ -14,7 +14,8 @@ import {
   Sparkles, 
   ArrowRight,
   TrendingUp,
-  ChevronRight
+  ChevronRight,
+  User
 } from 'lucide-react'
 
 interface PageProps {
@@ -84,21 +85,21 @@ export default async function Home({ searchParams }: PageProps) {
     activeTeamName = teamData?.name || `Equipa #${teamParam}`
   }
 
-  // 2. Lógica de Datas (Seletor de 5 dias)
+  // 2. Lógica de Datas (Seletor de 15 dias)
   const now = new Date()
   const todayStr = now.toISOString().split('T')[0]
   const activeDate = dateParam || todayStr
 
-  // Criar array dos 5 dias (-2, -1, hoje, +1, +2)
+  // Criar array dos 15 dias (-7 a +7)
   const dateStrip = []
-  for (let i = -2; i <= 2; i++) {
+  for (let i = -7; i <= 7; i++) {
     const d = new Date()
     d.setDate(now.getDate() + i)
     const dStr = d.toISOString().split('T')[0]
     
-    // Obter dia da semana resumido em PT
-    const label = d.toLocaleDateString('pt-PT', { weekday: 'short' })
-      .replace('.', '')
+    // Obter dia da semana por extenso em PT, removendo o sufixo "-feira"
+    const label = d.toLocaleDateString('pt-PT', { weekday: 'long' })
+      .split('-')[0]
       .toUpperCase()
     
     // Obter número do dia
@@ -224,8 +225,8 @@ export default async function Home({ searchParams }: PageProps) {
       <header className="z-50 border-b border-zinc-800/60 bg-zinc-950/70 backdrop-blur-md sticky top-0">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3 group shrink-0">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-all">
-              <span className="text-sm font-black tracking-wider text-white">OS</span>
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl overflow-hidden shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-all bg-zinc-900">
+              <img src="/logo.png" alt="Olivetti Score Logo" className="w-full h-full object-cover" />
             </div>
             <span className="font-extrabold text-lg bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400 hidden sm:inline">
               Olivetti Score
@@ -247,9 +248,10 @@ export default async function Home({ searchParams }: PageProps) {
                 </div>
                 <Link
                   href="/dashboard"
-                  className="px-4 py-2 rounded-xl text-xs font-bold border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 hover:text-white transition-all"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 hover:text-white transition-all"
                 >
-                  Dashboard
+                  <User className="w-3.5 h-3.5" />
+                  <span>Perfil</span>
                 </Link>
                 <form action={logout}>
                   <button
@@ -438,7 +440,7 @@ export default async function Home({ searchParams }: PageProps) {
           <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 shadow">
             
             {/* Seletor de Estados: Todos, Live, FT, NS, Favoritos */}
-            <div className="flex p-0.5 bg-zinc-950 border border-zinc-850 rounded-xl max-w-md overflow-x-auto gap-0.5">
+            <div className="flex p-0.5 bg-zinc-950 border border-zinc-850 rounded-xl shrink-0 overflow-x-auto gap-0.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <Link
                 href={`/?status=all${dateParam ? `&date=${dateParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
                 className={`px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
@@ -495,23 +497,25 @@ export default async function Home({ searchParams }: PageProps) {
               )}
             </div>
 
-            {/* Seletor de 5 dias (Não exibe se o estado for LIVE, pois LIVE é global) */}
+            {/* Seletor de 15 dias (Não exibe se o estado for LIVE, pois LIVE é global) */}
             {statusParam !== 'live' && (
-              <div className="flex items-center gap-1.5 bg-zinc-950/50 p-1 border border-zinc-900 rounded-xl overflow-x-auto">
+              <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-zinc-950/50 p-1 border border-zinc-900 rounded-xl overflow-x-auto scroll-smooth [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-zinc-950/50 [&::-webkit-scrollbar-thumb]:bg-zinc-800 hover:[&::-webkit-scrollbar-thumb]:bg-indigo-500/80 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-color:theme(colors.zinc.800)_transparent] [scrollbar-width:thin]">
                 {dateStrip.map((day) => {
                   const isActive = activeDate === day.dateStr
                   return (
                     <Link
                       key={day.dateStr}
                       href={`/?date=${day.dateStr}${statusParam !== 'all' ? `&status=${statusParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
-                      className={`flex flex-col items-center justify-center min-w-[50px] py-1 px-2 rounded-lg transition-all ${
+                      className={`flex flex-col items-center justify-center min-w-[85px] py-1.5 px-2.5 rounded-lg transition-all ${
                         isActive
                           ? 'bg-gradient-to-tr from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/10'
-                          : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/30'
+                          : day.isToday
+                            ? 'border border-indigo-500/30 text-indigo-300 bg-indigo-500/5 hover:bg-indigo-500/10'
+                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/30'
                       }`}
                     >
-                      <span className="text-[9px] font-black tracking-wider leading-none">{day.label}</span>
-                      <span className="text-sm font-black mt-0.5 leading-none">{day.dayNum}</span>
+                      <span className="text-[8px] font-black tracking-wider leading-none">{day.label}</span>
+                      <span className="text-xs font-black mt-1 leading-none">{day.dayNum}</span>
                     </Link>
                   )
                 })}
