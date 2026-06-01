@@ -4,6 +4,8 @@ import { bzzoiroService, BzzoiroEvent, BzzoiroLeague } from '@/services/bzzoiro'
 import { favoritesService, UserFavorites } from '@/services/favorites'
 import StarButton from '@/components/favorites/StarButton'
 import SearchHeader from '@/components/SearchHeader'
+import LocalTime from '@/components/LocalTime'
+import LiveRefresher from '@/components/LiveRefresher'
 import { logout } from './login/actions'
 import { 
   Calendar as CalendarIcon, 
@@ -15,6 +17,8 @@ import {
   ArrowRight,
   TrendingUp,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   User
 } from 'lucide-react'
 
@@ -85,9 +89,17 @@ export default async function Home({ searchParams }: PageProps) {
     activeTeamName = teamData?.name || `Equipa #${teamParam}`
   }
 
+  // Helper para formatar data local em YYYY-MM-DD sem problemas de fuso horário
+  const formatDateLocal = (date: Date) => {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+
   // 2. Lógica de Datas (Seletor de 15 dias)
   const now = new Date()
-  const todayStr = now.toISOString().split('T')[0]
+  const todayStr = formatDateLocal(now)
   const activeDate = dateParam || todayStr
 
   // Criar array dos 15 dias (-7 a +7)
@@ -95,7 +107,7 @@ export default async function Home({ searchParams }: PageProps) {
   for (let i = -7; i <= 7; i++) {
     const d = new Date()
     d.setDate(now.getDate() + i)
-    const dStr = d.toISOString().split('T')[0]
+    const dStr = formatDateLocal(d)
     
     // Obter dia da semana por extenso em PT, removendo o sufixo "-feira"
     const label = d.toLocaleDateString('pt-PT', { weekday: 'long' })
@@ -112,6 +124,71 @@ export default async function Home({ searchParams }: PageProps) {
       isToday: dStr === todayStr
     })
   }
+
+  // 2b. Lógica do Calendário Mensal
+  const activeDateObj = new Date(activeDate)
+  const activeYear = activeDateObj.getFullYear()
+  const activeMonth = activeDateObj.getMonth() // 0-indexed
+
+  // Nome do mês por extenso em português
+  const monthNames = [
+    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+  ]
+  const monthNameLabel = `${monthNames[activeMonth]} de ${activeYear}`
+
+  // Primeiro dia do mês ativo
+  const firstDayOfMonth = new Date(activeYear, activeMonth, 1)
+  const firstDayWeekday = firstDayOfMonth.getDay() // 0 = Domingo, 1 = Segunda, etc.
+
+  // Número de dias no mês ativo e no mês anterior
+  const daysInActiveMonth = new Date(activeYear, activeMonth + 1, 0).getDate()
+  const daysInPrevMonth = new Date(activeYear, activeMonth, 0).getDate()
+
+  const calendarDays = []
+
+  // 1. Dias do mês anterior para preencher a primeira semana
+  for (let i = firstDayWeekday - 1; i >= 0; i--) {
+    const dayNum = daysInPrevMonth - i
+    const d = new Date(activeYear, activeMonth - 1, dayNum)
+    calendarDays.push({
+      dayNum,
+      dateStr: formatDateLocal(d),
+      isCurrentMonth: false,
+      isToday: formatDateLocal(d) === todayStr
+    })
+  }
+
+  // 2. Dias do mês atual
+  for (let i = 1; i <= daysInActiveMonth; i++) {
+    const d = new Date(activeYear, activeMonth, i)
+    calendarDays.push({
+      dayNum: i,
+      dateStr: formatDateLocal(d),
+      isCurrentMonth: true,
+      isToday: formatDateLocal(d) === todayStr
+    })
+  }
+
+  // 3. Dias do mês seguinte para completar a grelha de 42 células
+  const remainingCells = 42 - calendarDays.length
+  for (let i = 1; i <= remainingCells; i++) {
+    const d = new Date(activeYear, activeMonth + 1, i)
+    calendarDays.push({
+      dayNum: i,
+      dateStr: formatDateLocal(d),
+      isCurrentMonth: false,
+      isToday: formatDateLocal(d) === todayStr
+    })
+  }
+
+  const WEEKDAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
+
+  // Datas de navegação do calendário (mês anterior e mês seguinte)
+  const prevMonthDate = new Date(activeYear, activeMonth - 1, 1)
+  const prevMonthDateStr = formatDateLocal(prevMonthDate)
+  const nextMonthDate = new Date(activeYear, activeMonth + 1, 1)
+  const nextMonthDateStr = formatDateLocal(nextMonthDate)
 
   // 3. Obter Jogos (API Bzzoiro)
   let events: BzzoiroEvent[] = []
@@ -169,12 +246,28 @@ export default async function Home({ searchParams }: PageProps) {
     groupedEvents[lId].events.push(event)
   })
 
+  // Ordenar os jogos de cada liga por data/hora (crescente)
+  Object.values(groupedEvents).forEach((group) => {
+    group.events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  })
+
   const sortedGroupedLeagues = Object.values(groupedEvents).sort((a, b) => {
     const aFav = favorites.leagues.includes(a.league.id) ? 1 : 0
     const bFav = favorites.leagues.includes(b.league.id) ? 1 : 0
     if (aFav !== bFav) return bFav - aFav // Favoritas primeiro
+
+    // Obter horário do primeiro jogo de cada liga
+    const aFirstGameTime = a.events.length > 0 ? new Date(a.events[0].date).getTime() : 0
+    const bFirstGameTime = b.events.length > 0 ? new Date(b.events[0].date).getTime() : 0
+
+    if (aFirstGameTime !== bFirstGameTime) {
+      return aFirstGameTime - bFirstGameTime // Mais cedo primeiro
+    }
     return a.league.name.localeCompare(b.league.name)
   })
+
+  // Verificar se existem jogos ao vivo para ativar a atualização em tempo real no cliente
+  const hasLiveEvents = events.some((e) => e.status === 'LIVE' || e.status === 'HT')
 
   // Helper para Status Badges dos jogos
   const getStatusBadge = (event: BzzoiroEvent) => {
@@ -200,22 +293,14 @@ export default async function Home({ searchParams }: PageProps) {
           </span>
         )
       default: {
-        const hora = new Date(date).toLocaleTimeString('pt-PT', { 
-          hour: '2-digit', 
-          minute: '2-digit', 
-          timeZone: 'Europe/Lisbon' 
-        })
-        return (
-          <span className="text-zinc-500 text-xs font-semibold">
-            {hora}
-          </span>
-        )
+        return <LocalTime utcDateString={date} />
       }
     }
   }
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-zinc-950 to-black text-zinc-100 flex flex-col font-sans">
+      <LiveRefresher hasLiveEvents={hasLiveEvents} />
       
       {/* Background abstract glowing shapes */}
       <div className="absolute top-0 left-1/4 -translate-x-1/2 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -223,7 +308,7 @@ export default async function Home({ searchParams }: PageProps) {
 
       {/* Header/Navbar */}
       <header className="z-50 border-b border-zinc-800/60 bg-zinc-950/70 backdrop-blur-md sticky top-0">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-8xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3 group shrink-0">
             <div className="flex items-center justify-center w-9 h-9 rounded-xl overflow-hidden shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-all bg-zinc-900">
               <img src="/logo.png" alt="Olivetti Score Logo" className="w-full h-full object-cover" />
@@ -277,7 +362,7 @@ export default async function Home({ searchParams }: PageProps) {
       </header>
 
       {/* Main App Container */}
-      <main className="z-10 flex-1 max-w-7xl w-full mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <main className="z-10 flex-1 max-w-8xl w-full mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         {/* COLUNA ESQUERDA: Sidebar de Ligas */}
         <aside className="lg:col-span-3 space-y-6 sticky top-24">
@@ -406,7 +491,7 @@ export default async function Home({ searchParams }: PageProps) {
         </aside>
 
         {/* COLUNA DIREITA/CENTRAL: Jogos e Filtros */}
-        <section className="lg:col-span-9 space-y-6">
+        <section className="lg:col-span-9 xl:col-span-6 xl:col-start-4 space-y-6">
           
           {/* Banner de Filtro Ativo */}
           {(leagueParam || teamParam) && (
@@ -436,14 +521,12 @@ export default async function Home({ searchParams }: PageProps) {
             </div>
           )}
 
-          {/* Barra de Seleção de Datas e Estados */}
-          <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 shadow">
-            
-            {/* Seletor de Estados: Todos, Live, FT, NS, Favoritos */}
-            <div className="flex p-0.5 bg-zinc-950 border border-zinc-850 rounded-xl shrink-0 overflow-x-auto gap-0.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {/* Seletor de Estados: Todos, Live, FT, NS, Favoritos (Barra Sozinha) */}
+          <div className="flex p-1 bg-zinc-900/40 border border-zinc-800 rounded-2xl shadow-sm w-full">
+            <div className="flex p-0.5 bg-zinc-950 border border-zinc-850 rounded-xl w-full gap-0.5">
               <Link
                 href={`/?status=all${dateParam ? `&date=${dateParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
-                className={`px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
+                className={`flex-1 text-center px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
                   statusParam === 'all'
                     ? 'bg-zinc-800 text-white shadow'
                     : 'text-zinc-500 hover:text-zinc-300'
@@ -453,7 +536,7 @@ export default async function Home({ searchParams }: PageProps) {
               </Link>
               <Link
                 href={`/?status=live${leagueParam ? `&league=${leagueParam}` : ''}`}
-                className={`px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all flex items-center gap-1 whitespace-nowrap ${
+                className={`flex-1 text-center px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
                   statusParam === 'live'
                     ? 'bg-red-500/10 border border-red-500/20 text-red-400 font-extrabold shadow'
                     : 'text-zinc-500 hover:text-zinc-300'
@@ -464,7 +547,7 @@ export default async function Home({ searchParams }: PageProps) {
               </Link>
               <Link
                 href={`/?status=finished${dateParam ? `&date=${dateParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
-                className={`px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
+                className={`flex-1 text-center px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
                   statusParam === 'finished'
                     ? 'bg-zinc-800 text-white shadow'
                     : 'text-zinc-500 hover:text-zinc-300'
@@ -474,7 +557,7 @@ export default async function Home({ searchParams }: PageProps) {
               </Link>
               <Link
                 href={`/?status=scheduled${dateParam ? `&date=${dateParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
-                className={`px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
+                className={`flex-1 text-center px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
                   statusParam === 'scheduled'
                     ? 'bg-zinc-800 text-white shadow'
                     : 'text-zinc-500 hover:text-zinc-300'
@@ -485,7 +568,7 @@ export default async function Home({ searchParams }: PageProps) {
               {user && (
                 <Link
                   href={`/?status=favorites${dateParam ? `&date=${dateParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
-                  className={`px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all flex items-center gap-1 whitespace-nowrap ${
+                  className={`flex-1 text-center px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
                     statusParam === 'favorites'
                       ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400 font-extrabold shadow'
                       : 'text-zinc-500 hover:text-zinc-300'
@@ -496,32 +579,32 @@ export default async function Home({ searchParams }: PageProps) {
                 </Link>
               )}
             </div>
-
-            {/* Seletor de 15 dias (Não exibe se o estado for LIVE, pois LIVE é global) */}
-            {statusParam !== 'live' && (
-              <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-zinc-950/50 p-1 border border-zinc-900 rounded-xl overflow-x-auto scroll-smooth [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-zinc-950/50 [&::-webkit-scrollbar-thumb]:bg-zinc-800 hover:[&::-webkit-scrollbar-thumb]:bg-indigo-500/80 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-color:theme(colors.zinc.800)_transparent] [scrollbar-width:thin]">
-                {dateStrip.map((day) => {
-                  const isActive = activeDate === day.dateStr
-                  return (
-                    <Link
-                      key={day.dateStr}
-                      href={`/?date=${day.dateStr}${statusParam !== 'all' ? `&status=${statusParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
-                      className={`flex flex-col items-center justify-center min-w-[85px] py-1.5 px-2.5 rounded-lg transition-all ${
-                        isActive
-                          ? 'bg-gradient-to-tr from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/10'
-                          : day.isToday
-                            ? 'border border-indigo-500/30 text-indigo-300 bg-indigo-500/5 hover:bg-indigo-500/10'
-                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/30'
-                      }`}
-                    >
-                      <span className="text-[8px] font-black tracking-wider leading-none">{day.label}</span>
-                      <span className="text-xs font-black mt-1 leading-none">{day.dayNum}</span>
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
           </div>
+
+          {/* Seletor de 15 dias para mobile/tablet (oculto em xl+) */}
+          {statusParam !== 'live' && (
+            <div className="xl:hidden flex items-center gap-1.5 bg-zinc-950/50 p-1 border border-zinc-900 rounded-xl overflow-x-auto scroll-smooth max-w-full [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-zinc-950/50 [&::-webkit-scrollbar-thumb]:bg-zinc-800 hover:[&::-webkit-scrollbar-thumb]:bg-indigo-500/80 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-color:theme(colors.zinc.800)_transparent] [scrollbar-width:thin]">
+              {dateStrip.map((day) => {
+                const isActive = activeDate === day.dateStr
+                return (
+                  <Link
+                    key={day.dateStr}
+                    href={`/?date=${day.dateStr}${statusParam !== 'all' ? `&status=${statusParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
+                    className={`flex flex-col items-center justify-center min-w-[85px] py-1.5 px-2.5 rounded-lg transition-all ${
+                      isActive
+                        ? 'bg-gradient-to-tr from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/10'
+                        : day.isToday
+                          ? 'border border-indigo-500/30 text-indigo-300 bg-indigo-500/5 hover:bg-indigo-500/10'
+                          : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/30'
+                    }`}
+                  >
+                    <span className="text-[8px] font-black tracking-wider leading-none">{day.label}</span>
+                    <span className="text-xs font-black mt-1 leading-none">{day.dayNum}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
 
           {/* Mensagem de Erro de Ligação à API */}
           {errorMsg && (
@@ -659,6 +742,70 @@ export default async function Home({ searchParams }: PageProps) {
             </div>
           )}
         </section>
+
+        {/* COLUNA DIREITA: Calendário Mensal (apenas em xl+) */}
+        <aside className="hidden xl:block xl:col-span-3 space-y-6 sticky top-24 select-none">
+          {statusParam !== 'live' && (
+            <div className="backdrop-blur-md bg-zinc-900/20 border border-zinc-800/60 rounded-3xl p-5 shadow-lg flex flex-col">
+              
+              {/* Header: Month name & navigation */}
+              <div className="flex items-center justify-between mb-4 border-b border-zinc-900 pb-3">
+                <span className="text-xs font-bold text-zinc-300 capitalize">
+                  {monthNameLabel}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <Link
+                    href={`/?date=${prevMonthDateStr}${statusParam !== 'all' ? `&status=${statusParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
+                    className="p-1 rounded-md border border-zinc-800 bg-zinc-950/40 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all active:scale-95 cursor-pointer"
+                    title="Mês Anterior"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  </Link>
+                  <Link
+                    href={`/?date=${nextMonthDateStr}${statusParam !== 'all' ? `&status=${statusParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
+                    className="p-1 rounded-md border border-zinc-800 bg-zinc-950/40 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all active:scale-95 cursor-pointer"
+                    title="Mês Seguinte"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Weekdays */}
+              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black text-zinc-500 mb-2">
+                {WEEKDAYS.map((day, idx) => (
+                  <div key={idx} className="h-8 flex items-center justify-center uppercase font-mono">
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              {/* Day cells */}
+              <div className="grid grid-cols-7 gap-1 text-center text-xs">
+                {calendarDays.map((day, idx) => {
+                  const isActive = activeDate === day.dateStr
+                  return (
+                    <Link
+                      key={idx}
+                      href={`/?date=${day.dateStr}${statusParam !== 'all' ? `&status=${statusParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
+                      className={`h-8 flex items-center justify-center rounded-lg transition-all ${
+                        isActive
+                          ? 'border border-zinc-300 bg-zinc-800 text-white font-extrabold shadow shadow-black/80'
+                          : day.isToday
+                            ? 'border border-indigo-500/40 text-indigo-300 font-bold bg-indigo-500/5 hover:bg-indigo-500/10'
+                            : day.isCurrentMonth
+                              ? 'text-zinc-200 hover:bg-zinc-850 font-semibold'
+                              : 'text-zinc-650 hover:bg-zinc-850/40 font-normal'
+                      }`}
+                    >
+                      {day.dayNum}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </aside>
       </main>
 
       {/* Footer */}

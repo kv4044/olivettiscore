@@ -6,6 +6,7 @@ import { favoritesService, UserFavorites } from '@/services/favorites'
 import { predictionsService } from '@/services/predictions'
 import StarButton from '@/components/favorites/StarButton'
 import MatchTabs from '@/components/matches/MatchTabs'
+import LocalTime from '@/components/LocalTime'
 import { 
   ArrowLeft, 
   Clock, 
@@ -42,6 +43,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
   let stats: any = null
   let lineups: any = null
   let standings: any = null
+  let incidents: any = null
   let errorMsg: string | null = null
 
   try {
@@ -56,12 +58,13 @@ export default async function MatchPage({ params }: MatchPageProps) {
     userPrediction = predRes
 
     if (event) {
-      const [venueRes, refereeRes, statsRes, lineupsRes, standingsRes] = await Promise.all([
+      const [venueRes, refereeRes, statsRes, lineupsRes, standingsRes, incidentsRes] = await Promise.all([
         event.venue_id ? bzzoiroService.getVenueDetails(event.venue_id).catch(() => null) : Promise.resolve(null),
         event.referee_id ? bzzoiroService.getRefereeDetails(event.referee_id).catch(() => null) : Promise.resolve(null),
         bzzoiroService.getEventStats(matchId).catch(() => null),
         bzzoiroService.getEventLineups(matchId).catch(() => null),
-        bzzoiroService.getLeagueStandings(event.league.id).catch(() => null)
+        bzzoiroService.getLeagueStandings(event.league.id).catch(() => null),
+        bzzoiroService.getEventIncidents(matchId).catch(() => null)
       ])
 
       venue = venueRes
@@ -69,6 +72,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
       stats = statsRes
       lineups = lineupsRes
       standings = standingsRes
+      incidents = incidentsRes
     }
   } catch (error: any) {
     console.error('Erro ao carregar detalhe do jogo:', error)
@@ -137,13 +141,21 @@ export default async function MatchPage({ params }: MatchPageProps) {
       month: 'short'
     })
     return (
-      <div className="text-zinc-400 text-xs font-semibold flex items-center gap-1 bg-zinc-950 border border-zinc-850 px-3 py-1 rounded-full">
+      <div className="text-zinc-400 text-xs font-semibold flex items-center gap-1.5 bg-zinc-950 border border-zinc-850 px-3 py-1 rounded-full">
         <Calendar className="w-3.5 h-3.5 text-zinc-500" />
-        <span>{dataLabel} · {hora}</span>
+        <span>{dataLabel} · </span>
+        <LocalTime utcDateString={event.date} />
       </div>
     )
   }
 
+  // Extrair golos para o cabeçalho
+  const incidentsList = incidents?.incidents || []
+  const goals = incidentsList.filter((i: any) => i.type === 'goal')
+  const sortedGoals = [...goals].sort((a: any, b: any) => a.minute - b.minute)
+  const homeGoals = sortedGoals.filter((g: any) => g.is_home)
+  const awayGoals = sortedGoals.filter((g: any) => !g.is_home)
+  
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-zinc-950 to-black text-zinc-100 flex flex-col font-sans">
       
@@ -247,6 +259,101 @@ export default async function MatchPage({ params }: MatchPageProps) {
               </h2>
             </div>
           </div>
+
+          {/* Marcadores dos golos e cartões */}
+          {(homeGoals.length > 0 || awayGoals.length > 0 || incidentsList.some((i: any) => i.type === 'card')) && (
+            <div className="mt-6 pt-4 border-t border-zinc-850/60 space-y-3">
+              {/* Golos */}
+              {(homeGoals.length > 0 || awayGoals.length > 0) && (
+                <div className="grid grid-cols-12 gap-4 text-xs text-zinc-400">
+                  {/* Golos da Casa */}
+                  <div className="col-span-5 text-right space-y-1">
+                    {homeGoals.map((g: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-end gap-1.5">
+                        {g.goal_type === 'own' && <span className="text-[10px] text-red-400 font-semibold">(P.B.)</span>}
+                        {g.goal_type === 'penalty' && <span className="text-[10px] text-emerald-400 font-semibold">(Pen.)</span>}
+                        <span className="font-medium text-zinc-300">{g.player}</span>
+                        <span className="text-zinc-500 font-mono">{g.minute}'{g.added_time ? `+${g.added_time}` : ''}</span>
+                        <span className="text-zinc-400">⚽</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Espaço central */}
+                  <div className="col-span-2 flex justify-center items-center">
+                    <span className="text-[9px] uppercase font-black text-zinc-650 tracking-wider">Golos</span>
+                  </div>
+
+                  {/* Golos de Fora */}
+                  <div className="col-span-5 text-left space-y-1">
+                    {awayGoals.map((g: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-start gap-1.5">
+                        <span className="text-zinc-400">⚽</span>
+                        <span className="text-zinc-500 font-mono">{g.minute}'{g.added_time ? `+${g.added_time}` : ''}</span>
+                        <span className="font-medium text-zinc-300">{g.player}</span>
+                        {g.goal_type === 'penalty' && <span className="text-[10px] text-emerald-400 font-semibold">(Pen.)</span>}
+                        {g.goal_type === 'own' && <span className="text-[10px] text-red-400 font-semibold">(P.B.)</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Cartões */}
+              {incidentsList.some((i: any) => i.type === 'card') && (
+                <div className="grid grid-cols-12 gap-4 text-xs text-zinc-400 pt-2 border-t border-dashed border-zinc-900">
+                  {/* Cartões Casa */}
+                  <div className="col-span-5 text-right flex items-center justify-end gap-3">
+                    {(() => {
+                      const yellows = incidentsList.filter((i: any) => i.is_home && i.type === 'card' && i.card_type === 'yellow').length
+                      const reds = incidentsList.filter((i: any) => i.is_home && i.type === 'card' && (i.card_type === 'red' || i.card_type === 'yellow_red')).length
+                      return (
+                        <>
+                          {yellows > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-500 bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/20">
+                              <span className="w-2.5 h-3.5 bg-amber-500 rounded-[2px]" /> {yellows}
+                            </span>
+                          )}
+                          {reds > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-500 bg-red-500/5 px-2 py-0.5 rounded border border-red-500/20">
+                              <span className="w-2.5 h-3.5 bg-red-500 rounded-[2px]" /> {reds}
+                            </span>
+                          )}
+                        </>
+                      )
+                    })()}
+                  </div>
+
+                  {/* Espaço central */}
+                  <div className="col-span-2 flex justify-center items-center">
+                    <span className="text-[9px] uppercase font-black text-zinc-650 tracking-wider">Cartões</span>
+                  </div>
+
+                  {/* Cartões Fora */}
+                  <div className="col-span-5 text-left flex items-center justify-start gap-3">
+                    {(() => {
+                      const yellows = incidentsList.filter((i: any) => !i.is_home && i.type === 'card' && i.card_type === 'yellow').length
+                      const reds = incidentsList.filter((i: any) => !i.is_home && i.type === 'card' && (i.card_type === 'red' || i.card_type === 'yellow_red')).length
+                      return (
+                        <>
+                          {yellows > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-500 bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/20">
+                              <span className="w-2.5 h-3.5 bg-amber-500 rounded-[2px]" /> {yellows}
+                            </span>
+                          )}
+                          {reds > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-500 bg-red-500/5 px-2 py-0.5 rounded border border-red-500/20">
+                              <span className="w-2.5 h-3.5 bg-red-500 rounded-[2px]" /> {reds}
+                            </span>
+                          )}
+                        </>
+                      )
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         {/* DETALHES, PREVISÕES ML E SIMULADOR (Abas Dinâmicas) */}
@@ -261,6 +368,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
             stats={stats}
             lineups={lineups}
             standings={standings}
+            incidents={incidents}
           />
         </section>
 

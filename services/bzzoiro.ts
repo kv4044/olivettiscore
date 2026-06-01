@@ -295,6 +295,13 @@ export const bzzoiroService = {
   },
 
   /**
+   * Retorna os incidentes (cronologia/eventos) do jogo.
+   */
+  async getEventIncidents(eventId: number): Promise<any> {
+    return fetchBzzoiro<any>(`/events/${eventId}/incidents/`);
+  },
+
+  /**
    * Retorna plantéis do jogo.
    */
   async getEventLineups(eventId: number): Promise<any> {

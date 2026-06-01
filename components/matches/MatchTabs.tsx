@@ -28,6 +28,7 @@ interface MatchTabsProps {
   stats: any | null
   lineups: any | null
   standings: any | null
+  incidents?: any | null
 }
 
 export default function MatchTabs({
@@ -40,6 +41,7 @@ export default function MatchTabs({
   stats,
   lineups,
   standings,
+  incidents,
 }: MatchTabsProps) {
   const [activeTab, setActiveTab] = useState<
     'info' | 'prediction' | 'stats' | 'lineups' | 'standings'
@@ -76,6 +78,16 @@ export default function MatchTabs({
   // Standings helpers
   const standingsRows = standings?.standings || []
   const hasStandings = standingsRows.length > 0
+
+  // Incidents helpers
+  const incidentsList = incidents?.incidents || []
+  const timelineEvents = incidentsList.filter((i: any) =>
+    i.type === 'goal' ||
+    i.type === 'card' ||
+    i.type === 'substitution' ||
+    i.type === 'varDecision'
+  )
+  const sortedEvents = [...timelineEvents].sort((a: any, b: any) => a.minute - b.minute)
 
   // ── Stat bar component ─────────────────────────────────────────────────
   const StatBar = ({
@@ -443,7 +455,7 @@ export default function MatchTabs({
                 isCalculated={
                   userPrediction ? userPrediction.is_calculated : false
                 }
-                pointsAwarded={
+pointsAwarded={
                   userPrediction ? userPrediction.points_awarded : 0
                 }
               />
@@ -474,7 +486,133 @@ export default function MatchTabs({
             ABA 3 — ESTATÍSTICAS DO JOGO
            ═══════════════════════════════════════════════════════════ */}
         {activeTab === 'stats' && (
-          <div className="animate-in fade-in duration-300">
+          <div className="space-y-6 animate-in fade-in duration-300">
+            
+            {/* Cronologia / Eventos do Jogo */}
+            {sortedEvents.length > 0 && (
+              <div className="backdrop-blur-xl bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 shadow space-y-6">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-zinc-300 border-b border-zinc-850 pb-3 flex items-center gap-2">
+                  <span className="text-indigo-400">⏱</span>
+                  <span>Cronologia do Jogo</span>
+                </h4>
+                
+                <div className="relative border-l border-zinc-800 md:border-l-0 md:before:absolute md:before:left-1/2 md:before:top-0 md:before:bottom-0 md:before:w-[1px] md:before:bg-zinc-850 space-y-6 py-4">
+                  {sortedEvents.map((evt: any, idx: number) => {
+                    const isHome = evt.is_home
+                    const eventTime = `${evt.minute}'${evt.added_time ? `+${evt.added_time}` : ''}`
+                    
+                    let icon = null
+                    let content = null
+                    
+                    if (evt.type === 'goal') {
+                      icon = <span className="text-xs">⚽</span>
+                      content = (
+                        <div>
+                          <span className="font-extrabold text-zinc-100">{evt.player}</span>
+                          {evt.goal_type === 'penalty' && <span className="text-[10px] text-emerald-400 font-bold ml-1.5">(Pen.)</span>}
+                          {evt.goal_type === 'own' && <span className="text-[10px] text-red-400 font-bold ml-1.5">(P.B.)</span>}
+                          {evt.assist && (
+                            <span className="block text-[10px] text-zinc-500 font-medium mt-0.5">
+                              Assistência: {evt.assist}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    } else if (evt.type === 'card') {
+                      const isRed = evt.card_type === 'red' || evt.card_type === 'yellow_red'
+                      icon = <div className={`w-2.5 h-3.5 rounded-[2px] ${isRed ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]'}`} />
+                      content = (
+                        <div>
+                          <span className="font-bold text-zinc-200">{evt.player}</span>
+                          <span className={`block text-[10px] uppercase font-black mt-0.5 ${isRed ? 'text-red-400' : 'text-amber-400'}`}>
+                            {evt.card_type === 'yellow_red' ? 'Duplo Amarelo' : isRed ? 'Cartão Vermelho' : 'Cartão Amarelo'}
+                          </span>
+                        </div>
+                      )
+                    } else if (evt.type === 'substitution') {
+                      icon = <span className="text-zinc-400 text-xs">🔄</span>
+                      content = (
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1 text-emerald-400 text-xs font-semibold">
+                            <span>▲</span> <span>{evt.player_in}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-red-400/80 text-xs">
+                            <span>▼</span> <span>{evt.player_out}</span>
+                          </div>
+                        </div>
+                      )
+                    } else if (evt.type === 'varDecision') {
+                      icon = <span className="text-indigo-400 text-xs">🖥️</span>
+                      content = (
+                        <div>
+                          <span className="font-semibold text-zinc-300">{evt.player || 'Decisão VAR'}</span>
+                          <span className="block text-[10px] text-zinc-500 capitalize mt-0.5">
+                            VAR: {evt.decision === 'cardUpgrade' ? 'Revisão de Cartão' : evt.decision || 'Análise'}
+                          </span>
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <div key={idx} className="relative grid grid-cols-1 md:grid-cols-12 items-center gap-4 pl-6 md:pl-0">
+                        
+                        {/* Mobile Indicator / Dot */}
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 md:hidden flex items-center justify-center w-8 h-8 rounded-full bg-zinc-950 border border-zinc-800">
+                          <span className="text-[10px] font-mono font-bold text-zinc-400">{eventTime}</span>
+                        </div>
+
+                        {/* Home Event Column (Desktop only) */}
+                        <div className={`hidden md:block col-span-5 text-right ${isHome ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                          {isHome && (
+                            <div className="inline-flex items-center justify-end gap-3 max-w-full">
+                              <div className="text-right">{content}</div>
+                              <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-850 flex items-center justify-center shadow">
+                                {icon}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Central Time Badge (Desktop only) */}
+                        <div className="hidden md:flex col-span-2 justify-center z-10">
+                          <div className="px-2.5 py-1 rounded-full bg-zinc-950 border border-zinc-850 text-[10px] font-black font-mono text-zinc-400 shadow">
+                            {eventTime}
+                          </div>
+                        </div>
+
+                        {/* Away Event Column (Desktop only) */}
+                        <div className={`hidden md:block col-span-5 text-left ${!isHome ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                          {!isHome && (
+                            <div className="inline-flex items-center justify-start gap-3 max-w-full">
+                              <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-850 flex items-center justify-center shadow">
+                                {icon}
+                              </div>
+                              <div className="text-left">{content}</div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Mobile Layout */}
+                        <div className="md:hidden flex items-center gap-3">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center shadow">
+                            {icon}
+                          </div>
+                          <div>
+                            {content}
+                            <span className="block text-[9px] uppercase font-bold text-zinc-600 mt-0.5">
+                              {isHome ? event.home_team.name : event.away_team.name}
+                            </span>
+                          </div>
+                        </div>
+
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Estatísticas Detalhadas */}
             {hasStats ? (
               <div className="backdrop-blur-xl bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 shadow space-y-6">
                 {/* Cabeçalho equipas */}
@@ -576,17 +714,19 @@ export default function MatchTabs({
                 </div>
               </div>
             ) : (
-              <div className="backdrop-blur-xl bg-zinc-900/40 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-500">
-                <BarChart3 className="w-12 h-12 mx-auto text-zinc-700 mb-4" />
-                <h4 className="text-sm font-bold text-zinc-300">
-                  Estatísticas Indisponíveis
-                </h4>
-                <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto leading-relaxed">
-                  Posse de bola, remates, cantos e faltas serão carregados em
-                  tempo real assim que o jogo começar e a API disponibilizar os
-                  dados.
-                </p>
-              </div>
+              sortedEvents.length === 0 && (
+                <div className="backdrop-blur-xl bg-zinc-900/40 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-500 w-full">
+                  <BarChart3 className="w-12 h-12 mx-auto text-zinc-700 mb-4" />
+                  <h4 className="text-sm font-bold text-zinc-300">
+                    Estatísticas Indisponíveis
+                  </h4>
+                  <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto leading-relaxed">
+                    Posse de bola, remates, cantos e faltas serão carregados em
+                    tempo real assim que o jogo começar e a API disponibilizar os
+                    dados.
+                  </p>
+                </div>
+              )
             )}
           </div>
         )}
