@@ -32,6 +32,17 @@ export interface BzzoiroEvent {
   home_team: BzzoiroTeam;
   away_team: BzzoiroTeam;
   score: BzzoiroScore;
+  venue_id: number | null;
+  referee_id: number | null;
+  weather?: {
+    code: number | null;
+    description: string | null;
+    wind_speed: number | null;
+    temperature_c: number | null;
+  };
+  pitch_condition: number | null;
+  attendance: number | null;
+  is_local_derby: boolean;
   predictions?: {
     home_win_prob?: number;
     draw_prob?: number;
@@ -149,6 +160,12 @@ function transformEvent(raw: RawBzzoiroEvent): BzzoiroEvent {
         away: raw.away_score_ht,
       },
     },
+    venue_id: raw.venue_id,
+    referee_id: raw.referee_id,
+    weather: raw.weather,
+    pitch_condition: raw.pitch_condition,
+    attendance: raw.attendance,
+    is_local_derby: raw.is_local_derby,
   };
 }
 
@@ -254,5 +271,40 @@ export const bzzoiroService = {
   async getEventDetails(eventId: number): Promise<BzzoiroEvent> {
     const raw = await fetchBzzoiro<RawBzzoiroEvent>(`/events/${eventId}/`);
     return transformEvent(raw);
+  },
+
+  /**
+   * Retorna detalhes do estádio (venue).
+   */
+  async getVenueDetails(venueId: number): Promise<any> {
+    return fetchBzzoiro<any>(`/venues/${venueId}/`);
+  },
+
+  /**
+   * Retorna detalhes do árbitro.
+   */
+  async getRefereeDetails(refereeId: number): Promise<any> {
+    return fetchBzzoiro<any>(`/referees/${refereeId}/`);
+  },
+
+  /**
+   * Retorna estatísticas do jogo.
+   */
+  async getEventStats(eventId: number): Promise<any> {
+    return fetchBzzoiro<any>(`/events/${eventId}/stats/`);
+  },
+
+  /**
+   * Retorna plantéis do jogo.
+   */
+  async getEventLineups(eventId: number): Promise<any> {
+    return fetchBzzoiro<any>(`/events/${eventId}/lineups/`);
+  },
+
+  /**
+   * Retorna a classificação da liga.
+   */
+  async getLeagueStandings(leagueId: number): Promise<any> {
+    return fetchBzzoiro<any>(`/leagues/${leagueId}/standings/`);
   },
 };
