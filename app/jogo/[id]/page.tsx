@@ -7,6 +7,7 @@ import { predictionsService } from '@/services/predictions'
 import StarButton from '@/components/favorites/StarButton'
 import MatchTabs from '@/components/matches/MatchTabs'
 import LocalTime from '@/components/LocalTime'
+import LiveRefresher from '@/components/LiveRefresher'
 import { 
   ArrowLeft, 
   Clock, 
@@ -158,6 +159,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
   
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-zinc-950 to-black text-zinc-100 flex flex-col font-sans">
+      <LiveRefresher hasLiveEvents={event.status === 'LIVE' || event.status === 'HT'} />
       
       {/* Background abstract glowing shapes */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[400px] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />

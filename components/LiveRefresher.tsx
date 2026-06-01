@@ -11,12 +11,12 @@ export default function LiveRefresher({ hasLiveEvents }: LiveRefresherProps) {
   const router = useRouter()
 
   useEffect(() => {
-    if (!hasLiveEvents) return
+    // Atualiza a cada 20 segundos se houver jogos ao vivo, ou a cada 60 segundos caso contrário
+    const delay = hasLiveEvents ? 20000 : 60000
 
-    // Atualiza o Server Component (re-fetch da API) a cada 20 segundos enquanto houver jogos ao vivo
     const interval = setInterval(() => {
       router.refresh()
-    }, 20000)
+    }, delay)
 
     return () => clearInterval(interval)
   }, [hasLiveEvents, router])

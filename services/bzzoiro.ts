@@ -120,9 +120,9 @@ function mapStatus(raw: RawBzzoiroEvent): string {
   const status = raw.status?.toLowerCase();
   const period = raw.period?.toUpperCase();
 
-  if (status === 'finished') return 'FT';
-  if (status === 'inprogress' || status === 'live') {
-    if (period === 'HT') return 'HT';
+  if (status === 'finished' || status === 'ft') return 'FT';
+  if (status === 'ht' || status === 'halftime' || period === 'HT') return 'HT';
+  if (status === 'inprogress' || status === 'live' || status === '1h' || status === '2h') {
     return 'LIVE';
   }
   if (status === 'cancelled' || status === 'postponed') return status.toUpperCase();
