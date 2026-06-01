@@ -1,69 +1,115 @@
-import { bzzoiroService } from './bzzoiro'
 import { createAdminClient } from '@/utils/supabase/admin'
+
+// ─── Configuração Base ───────────────────────────────────────────────────────
+
+const BZZOIRO_API_URL = 'https://sports.bzzoiro.com/api/v2'
+
+interface PaginatedResponse<T> {
+  count: number
+  next: string | null
+  previous: string | null
+  results: T[]
+}
+
+interface RawLeague {
+  id: number
+  name: string
+  country: string
+  is_women: boolean
+  is_active: boolean
+  current_season: any
+}
+
+interface RawTeam {
+  id: number
+  name: string
+  short_name: string
+  country: string
+  venue_id: number | null
+}
+
+/**
+ * Busca todas as páginas de um endpoint paginado da API Bzzoiro.
+ * Segue o link 'next' devolvido pela API diretamente (mais seguro e correto).
+ */
+async function fetchAllPages<T>(endpoint: string): Promise<T[]> {
+  const apiKey = process.env.BZZOIRO_API_KEY
+  if (!apiKey) {
+    throw new Error('A chave BZZOIRO_API_KEY não está configurada no ficheiro .env.local.')
+  }
+
+  const allResults: T[] = []
+  // Começa com a primeira página do endpoint
+  let nextUrl: string | null = `${BZZOIRO_API_URL}${endpoint}`
+  const MAX_PAGES = 200 // Limite de segurança para evitar loops infinitos
+  let pageCount = 0
+
+  while (nextUrl && pageCount < MAX_PAGES) {
+    pageCount++
+
+    const response = await fetch(nextUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Accept': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Erro ao buscar ${endpoint} (pág. ${pageCount}): ${response.statusText}`)
+    }
+
+    const data: PaginatedResponse<T> = await response.json()
+
+    if (!data.results || data.results.length === 0) break
+
+    allResults.push(...data.results)
+
+    // Seguir o link 'next' fornecido pela API diretamente
+    nextUrl = data.next ?? null
+  }
+
+  return allResults
+}
+
+// ─── Service Público ─────────────────────────────────────────────────────────
 
 export const bzzoiroSyncService = {
   /**
-   * Obtém jogos num intervalo de tempo (7 dias atrás até 7 dias no futuro),
-   * extrai equipas e ligas únicas e atualiza-as na base de dados do Supabase.
+   * Importa TODAS as ligas e equipas disponíveis na API Bzzoiro,
+   * percorrendo todas as páginas dos endpoints /leagues/ e /teams/.
+   * Insere/atualiza (upsert) os dados na base de dados do Supabase.
    */
   async syncLeaguesAndTeams(): Promise<{
     leaguesSynced: number
     teamsSynced: number
   }> {
-    // 1. Calcular intervalo de datas: -7 dias a +7 dias
-    const now = new Date()
-    const fromDateObj = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    const toDateObj = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    console.log('[Sync] A iniciar sincronização completa de ligas e equipas...')
 
-    const date_from = fromDateObj.toISOString().split('T')[0]
-    const date_to = toDateObj.toISOString().split('T')[0]
+    // 1. Buscar TODAS as ligas da API (percorrendo paginação)
+    const rawLeagues = await fetchAllPages<RawLeague>('/leagues/')
+    console.log(`[Sync] Encontradas ${rawLeagues.length} ligas na API Bzzoiro.`)
 
-    // 2. Procurar eventos na API Bzzoiro
-    const events = await bzzoiroService.getEvents({ date_from, date_to })
+    // 2. Buscar TODAS as equipas da API (percorrendo paginação)
+    const rawTeams = await fetchAllPages<RawTeam>('/teams/')
+    console.log(`[Sync] Encontradas ${rawTeams.length} equipas na API Bzzoiro.`)
 
-    // 3. Extrair Ligas e Equipas únicas
-    const leaguesMap = new Map<number, { id: number; name: string; country: string | null }>()
-    const teamsMap = new Map<number, { id: number; name: string }>()
-
-    events.forEach((event) => {
-      // Extrair Liga
-      if (event.league && event.league.id) {
-        leaguesMap.set(event.league.id, {
-          id: event.league.id,
-          name: event.league.name,
-          country: event.league.country || null,
-        })
-      }
-
-      // Extrair Equipa de Casa
-      if (event.home_team && event.home_team.id) {
-        teamsMap.set(event.home_team.id, {
-          id: event.home_team.id,
-          name: event.home_team.name,
-        })
-      }
-
-      // Extrair Equipa de Fora
-      if (event.away_team && event.away_team.id) {
-        teamsMap.set(event.away_team.id, {
-          id: event.away_team.id,
-          name: event.away_team.name,
-        })
-      }
-    })
-
-    const leaguesToUpsert = Array.from(leaguesMap.values()).map((l) => ({
+    // 3. Preparar dados para upsert
+    const leaguesToUpsert = rawLeagues.map((l) => ({
       id: l.id,
       name: l.name,
-      country: l.country,
+      country: l.country || null,
       updated_at: new Date().toISOString(),
     }))
 
-    const teamsToUpsert = Array.from(teamsMap.values()).map((t) => ({
-      id: t.id,
-      name: t.name,
-      updated_at: new Date().toISOString(),
-    }))
+    const teamsToUpsert = rawTeams
+      .filter((t) => t.name && t.name.trim().length > 0) // Ignorar equipas sem nome
+      .map((t) => ({
+        id: t.id,
+        name: t.name,
+        short_name: t.short_name || null,
+        updated_at: new Date().toISOString(),
+      }))
 
     if (leaguesToUpsert.length === 0 && teamsToUpsert.length === 0) {
       return { leaguesSynced: 0, teamsSynced: 0 }
@@ -75,29 +121,40 @@ export const bzzoiroSyncService = {
     // 5. Inserir/Atualizar Ligas
     let leaguesSynced = 0
     if (leaguesToUpsert.length > 0) {
-      const { error: leagueError } = await supabase
-        .from('leagues')
-        .upsert(leaguesToUpsert, { onConflict: 'id' })
+      // Upsert em lotes de 500 para evitar limites de payload
+      for (let i = 0; i < leaguesToUpsert.length; i += 500) {
+        const batch = leaguesToUpsert.slice(i, i + 500)
+        const { error } = await supabase
+          .from('leagues')
+          .upsert(batch, { onConflict: 'id' })
 
-      if (leagueError) {
-        throw new Error(`Erro ao sincronizar ligas no Supabase: ${leagueError.message}`)
+        if (error) {
+          throw new Error(`Erro ao sincronizar ligas (lote ${i}): ${error.message}`)
+        }
       }
       leaguesSynced = leaguesToUpsert.length
+      console.log(`[Sync] ${leaguesSynced} ligas sincronizadas com sucesso.`)
     }
 
     // 6. Inserir/Atualizar Equipas
     let teamsSynced = 0
     if (teamsToUpsert.length > 0) {
-      const { error: teamError } = await supabase
-        .from('teams')
-        .upsert(teamsToUpsert, { onConflict: 'id' })
+      // Upsert em lotes de 500 para evitar limites de payload
+      for (let i = 0; i < teamsToUpsert.length; i += 500) {
+        const batch = teamsToUpsert.slice(i, i + 500)
+        const { error } = await supabase
+          .from('teams')
+          .upsert(batch, { onConflict: 'id' })
 
-      if (teamError) {
-        throw new Error(`Erro ao sincronizar equipas no Supabase: ${teamError.message}`)
+        if (error) {
+          throw new Error(`Erro ao sincronizar equipas (lote ${i}): ${error.message}`)
+        }
       }
       teamsSynced = teamsToUpsert.length
+      console.log(`[Sync] ${teamsSynced} equipas sincronizadas com sucesso.`)
     }
 
+    console.log(`[Sync] Sincronização completa! Ligas: ${leaguesSynced}, Equipas: ${teamsSynced}`)
     return { leaguesSynced, teamsSynced }
   }
 }
