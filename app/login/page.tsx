@@ -2,7 +2,7 @@
 
 import { useState, useActionState, useEffect } from 'react'
 import { login, signup } from './actions'
-import { Mail, Lock, Loader2, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react'
+import { Mail, Lock, Loader2, CheckCircle2, AlertCircle, ArrowRight, ChevronDown } from 'lucide-react'
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true)
@@ -25,11 +25,24 @@ export default function LoginPage() {
   // Reset state when switching tabs to clear old errors
   const [localError, setLocalError] = useState<string | null>(null)
   const [localSuccess, setLocalSuccess] = useState<string | null>(null)
+  const [maxDate, setMaxDate] = useState('')
+  const [isGenderOpen, setIsGenderOpen] = useState(false)
+  const [selectedGender, setSelectedGender] = useState('')
 
   useEffect(() => {
     setLocalError(null)
     setLocalSuccess(null)
+    setIsGenderOpen(false)
+    setSelectedGender('')
   }, [isLogin])
+
+  useEffect(() => {
+    const today = new Date()
+    const yyyy = today.getFullYear()
+    const mm = String(today.getMonth() + 1).padStart(2, '0')
+    const dd = String(today.getDate()).padStart(2, '0')
+    setMaxDate(`${yyyy}-${mm}-${dd}`)
+  }, [])
 
   useEffect(() => {
     if (state?.error) {
@@ -113,10 +126,34 @@ export default function LoginPage() {
           )}
 
           {/* Form */}
-          <form action={formAction} className="space-y-5">
+          <form 
+            onSubmit={(e) => {
+              if (!isLogin && !selectedGender) {
+                e.preventDefault()
+                setLocalError("Por favor, seleciona o teu género.")
+              }
+            }}
+            action={formAction} 
+            className="space-y-5"
+          >
             {/* Campos de Registo Adicionais */}
             {!isLogin && (
               <>
+                {/* Nome de Utilizador */}
+                <div className="space-y-1.5">
+                  <label htmlFor="username" className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                    Nome de Utilizador
+                  </label>
+                  <input
+                    id="username"
+                    name="username"
+                    type="text"
+                    required={!isLogin}
+                    placeholder="ex: joaosilva"
+                    className="w-full px-4 py-3 bg-zinc-950/60 border border-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-zinc-100 placeholder-zinc-650 focus:outline-none transition-all text-xs"
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   {/* Primeiro Nome */}
                   <div className="space-y-1.5">
@@ -160,27 +197,71 @@ export default function LoginPage() {
                       name="birth_date"
                       type="date"
                       required={!isLogin}
+                      min="1930-01-01"
+                      max={maxDate}
+                      onInvalid={(e) => {
+                        const target = e.target as HTMLInputElement;
+                        if (target.validity.rangeOverflow || target.validity.rangeUnderflow) {
+                          target.setCustomValidity("A data de nascimento introduzida não é válida.");
+                        } else {
+                          target.setCustomValidity("");
+                        }
+                      }}
+                      onInput={(e) => {
+                        (e.target as HTMLInputElement).setCustomValidity("");
+                      }}
                       className="w-full px-4 py-3 bg-zinc-950/60 border border-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-zinc-100 focus:outline-none transition-all text-xs"
                     />
                   </div>
 
                   {/* Género */}
-                  <div className="space-y-1.5">
-                    <label htmlFor="gender" className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  <div className="space-y-1.5 relative">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
                       Género
                     </label>
-                    <select
-                      id="gender"
-                      name="gender"
-                      required={!isLogin}
-                      defaultValue=""
-                      className="w-full px-3 py-3.5 bg-zinc-950/60 border border-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-zinc-100 focus:outline-none transition-all text-xs font-semibold"
+                    <input type="hidden" name="gender" value={selectedGender} />
+                    
+                    <button
+                      type="button"
+                      onClick={() => setIsGenderOpen(!isGenderOpen)}
+                      className="w-full flex items-center justify-between px-3 py-[14px] bg-zinc-950/60 border border-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-zinc-100 text-xs font-semibold transition-all cursor-pointer text-left focus:outline-none"
                     >
-                      <option value="" disabled className="text-zinc-600">Seleciona...</option>
-                      <option value="Masculino" className="bg-zinc-900 text-zinc-100">Masculino</option>
-                      <option value="Feminino" className="bg-zinc-900 text-zinc-100">Feminino</option>
-                      <option value="Prefiro não divulgar" className="bg-zinc-900 text-zinc-100">Prefiro não divulgar</option>
-                    </select>
+                      <span className={selectedGender ? 'text-zinc-100' : 'text-zinc-500'}>
+                        {selectedGender || 'Seleciona...'}
+                      </span>
+                      <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform duration-200 ${isGenderOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isGenderOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40 cursor-default" 
+                          onClick={() => setIsGenderOpen(false)} 
+                        />
+                        <div className="absolute left-0 right-0 mt-1 z-50 rounded-xl border border-zinc-850 bg-zinc-950/95 backdrop-blur-xl p-1.5 shadow-2xl space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                          {['Masculino', 'Feminino', 'Prefiro não divulgar'].map((option) => (
+                            <button
+                              key={option}
+                              type="button"
+                              onClick={() => {
+                                setSelectedGender(option)
+                                setIsGenderOpen(false)
+                              }}
+                              className={`w-full text-left px-3 py-2.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-between ${
+                                selectedGender === option
+                                  ? 'bg-indigo-500/10 text-indigo-300 border-l-2 border-indigo-500 pl-2.5 font-extrabold'
+                                  : 'text-zinc-400 hover:bg-zinc-900/60 hover:text-zinc-200'
+                              }`}
+                            >
+                              <span>{option}</span>
+                              {selectedGender === option && (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </>

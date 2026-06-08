@@ -45,7 +45,7 @@ export default async function DashboardPage() {
   // 2. Procurar Detalhes do Perfil
   const { data: profile } = await supabase
     .from('profiles')
-    .select('points, first_name, last_name, birth_date, gender')
+    .select('points, first_name, last_name, birth_date, gender, username')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -53,6 +53,7 @@ export default async function DashboardPage() {
   const firstName = profile?.first_name || user.user_metadata?.first_name || ''
   const lastName = profile?.last_name || user.user_metadata?.last_name || ''
   const fullName = firstName && lastName ? `${firstName} ${lastName}` : ''
+  const username = profile?.username || user.user_metadata?.username || ''
   const gender = profile?.gender || user.user_metadata?.gender || 'Não divulgado'
   const rawBirthDate = profile?.birth_date || user.user_metadata?.birth_date
   const formattedBirthDate = rawBirthDate
@@ -67,7 +68,7 @@ export default async function DashboardPage() {
   // 3. Obter Classificação Geral (Leaderboard) - Top 10 utilizadores
   const { data: leaderboardData } = await supabase
     .from('profiles')
-    .select('id, email, points, first_name, last_name')
+    .select('id, email, points, first_name, last_name, username')
     .order('points', { ascending: false })
     .limit(10)
 
@@ -210,6 +211,19 @@ export default async function DashboardPage() {
           {/* Cartão de Conta do Utilizador */}
           <div className="md:col-span-2 backdrop-blur-xl bg-zinc-900/40 border border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Nome de Utilizador */}
+              <div className="flex items-center gap-3 p-3 rounded-2xl bg-zinc-950/40 border border-zinc-850">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                  <User className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-[9px] text-zinc-550 uppercase tracking-wider font-bold">Nome de utilizador</p>
+                  <p className="text-xs font-semibold text-zinc-200 mt-0.5 font-mono">
+                    {username || 'Não especificado'}
+                  </p>
+                </div>
+              </div>
+
               {/* Nome completo */}
               <div className="flex items-center gap-3 p-3 rounded-2xl bg-zinc-950/40 border border-zinc-850">
                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">

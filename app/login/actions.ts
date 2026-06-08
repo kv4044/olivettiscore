@@ -46,9 +46,51 @@ export async function signup(prevState: ActionState, formData: FormData): Promis
   const lastName = formData.get('last_name') as string
   const birthDate = formData.get('birth_date') as string
   const gender = formData.get('gender') as string
+  const username = (formData.get('username') as string || '').trim()
 
-  if (!email || !password || !firstName || !lastName || !birthDate || !gender) {
+  if (!email || !password || !firstName || !lastName || !birthDate || !gender || !username) {
     return { error: 'Todos os campos são obrigatórios para registo.' }
+  }
+
+  if (username.length < 3 || username.length > 20) {
+    return { error: 'O nome de utilizador deve ter entre 3 e 20 caracteres.' }
+  }
+
+  const usernameRegex = /^[a-zA-Z0-9_-]+$/
+  if (!usernameRegex.test(username)) {
+    return { error: 'O nome de utilizador só pode conter letras, números, hífenes e underscores.' }
+  }
+
+  // Verificar se o nome de utilizador já existe na base de dados (case-insensitive)
+  const { data: existingUser, error: queryError } = await supabase
+    .from('profiles')
+    .select('username')
+    .ilike('username', username)
+    .maybeSingle()
+
+  if (queryError) {
+    console.error('Erro ao verificar username:', queryError)
+  }
+
+  if (existingUser) {
+    return { error: 'Este nome de utilizador já está registado. Por favor, escolhe outro.' }
+  }
+
+  // Validar data de nascimento
+  const birthDateObj = new Date(birthDate)
+  const birthYear = birthDateObj.getUTCFullYear()
+  const today = new Date()
+
+  if (isNaN(birthDateObj.getTime())) {
+    return { error: 'A data de nascimento introduzida é inválida.' }
+  }
+
+  if (birthYear < 1930) {
+    return { error: 'A data de nascimento não pode ser anterior a 1930.' }
+  }
+
+  if (birthDateObj > today) {
+    return { error: 'A data de nascimento não pode ser no futuro.' }
   }
 
   if (password.length < 6) {
@@ -63,7 +105,8 @@ export async function signup(prevState: ActionState, formData: FormData): Promis
         first_name: firstName,
         last_name: lastName,
         birth_date: birthDate,
-        gender: gender
+        gender: gender,
+        username: username
       }
     }
   })

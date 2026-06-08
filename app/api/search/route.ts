@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
     // 3. Pesquisar Jogadores (Perfis Públicos)
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, email, points, first_name, last_name')
-      .or(`email.ilike.%${query}%,first_name.ilike.%${query}%,last_name.ilike.%${query}%`)
+      .select('id, email, points, first_name, last_name, username')
+      .or(`email.ilike.%${query}%,first_name.ilike.%${query}%,last_name.ilike.%${query}%,username.ilike.%${query}%`)
       .limit(5)
 
     // Resolver a classificação de cada jogador na tabela classificativa geral
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
         return {
           id: profile.id,
           email: maskEmail(profile.email),
-          name: fullName || maskEmail(profile.email),
+          name: profile.username || fullName || maskEmail(profile.email),
           points: profile.points,
           rank: (count || 0) + 1,
         }

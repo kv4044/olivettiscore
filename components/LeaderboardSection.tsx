@@ -9,6 +9,7 @@ interface ProfileRow {
   points: number
   first_name?: string | null
   last_name?: string | null
+  username?: string | null
   rank?: number
 }
 
@@ -39,10 +40,7 @@ export default function LeaderboardSection({
   }
 
   const getDisplayName = (row: ProfileRow) => {
-    const fName = row.first_name || ''
-    const lName = row.last_name || ''
-    const fullName = [fName, lName].filter(Boolean).join(' ')
-    return fullName || getUsername(row.email)
+    return row.username || getUsername(row.email)
   }
 
   useEffect(() => {
