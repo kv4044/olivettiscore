@@ -17,10 +17,9 @@ import {
   ArrowRight,
   TrendingUp,
   ChevronRight,
-  ChevronUp,
-  ChevronDown,
   User
 } from 'lucide-react'
+import DateSelector from '@/components/matches/DateSelector'
 
 interface PageProps {
   searchParams: Promise<{
@@ -97,98 +96,10 @@ export default async function Home({ searchParams }: PageProps) {
     return `${y}-${m}-${d}`
   }
 
-  // 2. Lógica de Datas (Seletor de 15 dias)
+  // 2. Lógica de Datas
   const now = new Date()
   const todayStr = formatDateLocal(now)
   const activeDate = dateParam || todayStr
-
-  // Criar array dos 15 dias (-7 a +7)
-  const dateStrip = []
-  for (let i = -7; i <= 7; i++) {
-    const d = new Date()
-    d.setDate(now.getDate() + i)
-    const dStr = formatDateLocal(d)
-    
-    // Obter dia da semana por extenso em PT, removendo o sufixo "-feira"
-    const label = d.toLocaleDateString('pt-PT', { weekday: 'long' })
-      .split('-')[0]
-      .toUpperCase()
-    
-    // Obter número do dia
-    const dayNum = d.getDate()
-
-    dateStrip.push({
-      dateStr: dStr,
-      label,
-      dayNum,
-      isToday: dStr === todayStr
-    })
-  }
-
-  // 2b. Lógica do Calendário Mensal
-  const activeDateObj = new Date(activeDate)
-  const activeYear = activeDateObj.getFullYear()
-  const activeMonth = activeDateObj.getMonth() // 0-indexed
-
-  // Nome do mês por extenso em português
-  const monthNames = [
-    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
-  ]
-  const monthNameLabel = `${monthNames[activeMonth]} de ${activeYear}`
-
-  // Primeiro dia do mês ativo
-  const firstDayOfMonth = new Date(activeYear, activeMonth, 1)
-  const firstDayWeekday = firstDayOfMonth.getDay() // 0 = Domingo, 1 = Segunda, etc.
-
-  // Número de dias no mês ativo e no mês anterior
-  const daysInActiveMonth = new Date(activeYear, activeMonth + 1, 0).getDate()
-  const daysInPrevMonth = new Date(activeYear, activeMonth, 0).getDate()
-
-  const calendarDays = []
-
-  // 1. Dias do mês anterior para preencher a primeira semana
-  for (let i = firstDayWeekday - 1; i >= 0; i--) {
-    const dayNum = daysInPrevMonth - i
-    const d = new Date(activeYear, activeMonth - 1, dayNum)
-    calendarDays.push({
-      dayNum,
-      dateStr: formatDateLocal(d),
-      isCurrentMonth: false,
-      isToday: formatDateLocal(d) === todayStr
-    })
-  }
-
-  // 2. Dias do mês atual
-  for (let i = 1; i <= daysInActiveMonth; i++) {
-    const d = new Date(activeYear, activeMonth, i)
-    calendarDays.push({
-      dayNum: i,
-      dateStr: formatDateLocal(d),
-      isCurrentMonth: true,
-      isToday: formatDateLocal(d) === todayStr
-    })
-  }
-
-  // 3. Dias do mês seguinte para completar a grelha de 42 células
-  const remainingCells = 42 - calendarDays.length
-  for (let i = 1; i <= remainingCells; i++) {
-    const d = new Date(activeYear, activeMonth + 1, i)
-    calendarDays.push({
-      dayNum: i,
-      dateStr: formatDateLocal(d),
-      isCurrentMonth: false,
-      isToday: formatDateLocal(d) === todayStr
-    })
-  }
-
-  const WEEKDAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
-
-  // Datas de navegação do calendário (mês anterior e mês seguinte)
-  const prevMonthDate = new Date(activeYear, activeMonth - 1, 1)
-  const prevMonthDateStr = formatDateLocal(prevMonthDate)
-  const nextMonthDate = new Date(activeYear, activeMonth + 1, 1)
-  const nextMonthDateStr = formatDateLocal(nextMonthDate)
 
   // 3. Obter Jogos (API Bzzoiro)
   let events: BzzoiroEvent[] = []
@@ -490,8 +401,8 @@ export default async function Home({ searchParams }: PageProps) {
           </div>
         </aside>
 
-        {/* COLUNA DIREITA/CENTRAL: Jogos e Filtros */}
-        <section className="lg:col-span-9 xl:col-span-6 xl:col-start-4 space-y-6">
+        {/* COLUNA CENTRAL: Jogos e Filtros */}
+        <section className="lg:col-span-9 space-y-6">
           
           {/* Banner de Filtro Ativo */}
           {(leagueParam || teamParam) && (
@@ -521,90 +432,79 @@ export default async function Home({ searchParams }: PageProps) {
             </div>
           )}
 
-          {/* Seletor de Estados: Todos, Live, FT, NS, Favoritos (Barra Sozinha) */}
-          <div className="flex p-1 bg-zinc-900/40 border border-zinc-800 rounded-2xl shadow-sm w-full">
-            <div className="flex p-0.5 bg-zinc-950 border border-zinc-850 rounded-xl w-full gap-0.5">
-              <Link
-                href={`/?status=all${dateParam ? `&date=${dateParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
-                className={`flex-1 text-center px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
-                  statusParam === 'all'
-                    ? 'bg-zinc-800 text-white shadow'
-                    : 'text-zinc-500 hover:text-zinc-300'
-                }`}
-              >
-                Todos
-              </Link>
-              <Link
-                href={`/?status=live${leagueParam ? `&league=${leagueParam}` : ''}`}
-                className={`flex-1 text-center px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
-                  statusParam === 'live'
-                    ? 'bg-red-500/10 border border-red-500/20 text-red-400 font-extrabold shadow'
-                    : 'text-zinc-500 hover:text-zinc-300'
-                }`}
-              >
-                <span className="w-1 h-1 rounded-full bg-red-500 inline-block animate-ping" />
-                <span>Ao Vivo</span>
-              </Link>
-              <Link
-                href={`/?status=finished${dateParam ? `&date=${dateParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
-                className={`flex-1 text-center px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
-                  statusParam === 'finished'
-                    ? 'bg-zinc-800 text-white shadow'
-                    : 'text-zinc-500 hover:text-zinc-300'
-                }`}
-              >
-                Terminados
-              </Link>
-              <Link
-                href={`/?status=scheduled${dateParam ? `&date=${dateParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
-                className={`flex-1 text-center px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
-                  statusParam === 'scheduled'
-                    ? 'bg-zinc-800 text-white shadow'
-                    : 'text-zinc-500 hover:text-zinc-300'
-                }`}
-              >
-                Agendados
-              </Link>
-              {user && (
+          {/* Seletor de Estados & Seletor de Datas */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
+            <div className="flex p-1 bg-zinc-900/40 border border-zinc-800 rounded-2xl shadow-sm flex-1 w-full">
+              <div className="flex p-0.5 bg-zinc-950 border border-zinc-850 rounded-xl w-full gap-0.5">
                 <Link
-                  href={`/?status=favorites${dateParam ? `&date=${dateParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
-                  className={`flex-1 text-center px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
-                    statusParam === 'favorites'
-                      ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400 font-extrabold shadow'
+                  href={`/?status=all${dateParam ? `&date=${dateParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
+                  className={`flex-1 text-center px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
+                    statusParam === 'all'
+                      ? 'bg-zinc-800 text-white shadow'
                       : 'text-zinc-500 hover:text-zinc-300'
                   }`}
                 >
-                  <Star className="w-3.5 h-3.5 fill-current" />
-                  <span>Favoritos</span>
+                  Todos
                 </Link>
-              )}
-            </div>
-          </div>
-
-          {/* Seletor de 15 dias para mobile/tablet (oculto em xl+) */}
-          {statusParam !== 'live' && (
-            <div className="xl:hidden flex items-center gap-1.5 bg-zinc-950/50 p-1 border border-zinc-900 rounded-xl overflow-x-auto scroll-smooth max-w-full [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-zinc-950/50 [&::-webkit-scrollbar-thumb]:bg-zinc-800 hover:[&::-webkit-scrollbar-thumb]:bg-indigo-500/80 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-color:theme(colors.zinc.800)_transparent] [scrollbar-width:thin]">
-              {dateStrip.map((day) => {
-                const isActive = activeDate === day.dateStr
-                return (
+                <Link
+                  href={`/?status=live${leagueParam ? `&league=${leagueParam}` : ''}`}
+                  className={`flex-1 text-center px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
+                    statusParam === 'live'
+                      ? 'bg-red-500/10 border border-red-500/20 text-red-400 font-extrabold shadow'
+                      : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  <span className="w-1 h-1 rounded-full bg-red-500 inline-block animate-ping" />
+                  <span>Ao Vivo</span>
+                </Link>
+                <Link
+                  href={`/?status=finished${dateParam ? `&date=${dateParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
+                  className={`flex-1 text-center px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
+                    statusParam === 'finished'
+                      ? 'bg-zinc-800 text-white shadow'
+                      : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  Terminados
+                </Link>
+                <Link
+                  href={`/?status=scheduled${dateParam ? `&date=${dateParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
+                  className={`flex-1 text-center px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
+                    statusParam === 'scheduled'
+                      ? 'bg-zinc-800 text-white shadow'
+                      : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  Agendados
+                </Link>
+                {user && (
                   <Link
-                    key={day.dateStr}
-                    href={`/?date=${day.dateStr}${statusParam !== 'all' ? `&status=${statusParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
-                    className={`flex flex-col items-center justify-center min-w-[85px] py-1.5 px-2.5 rounded-lg transition-all ${
-                      isActive
-                        ? 'bg-gradient-to-tr from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/10'
-                        : day.isToday
-                          ? 'border border-indigo-500/30 text-indigo-300 bg-indigo-500/5 hover:bg-indigo-500/10'
-                          : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/30'
+                    href={`/?status=favorites${dateParam ? `&date=${dateParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
+                    className={`flex-1 text-center px-3 py-1.5 text-xxs sm:text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
+                      statusParam === 'favorites'
+                        ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400 font-extrabold shadow'
+                        : 'text-zinc-500 hover:text-zinc-300'
                     }`}
                   >
-                    <span className="text-[8px] font-black tracking-wider leading-none">{day.label}</span>
-                    <span className="text-xs font-black mt-1 leading-none">{day.dayNum}</span>
+                    <Star className="w-3.5 h-3.5 fill-current" />
+                    <span>Favoritos</span>
                   </Link>
-                )
-              })}
+                )}
+              </div>
             </div>
-          )}
+
+            {statusParam !== 'live' && (
+              <div className="shrink-0 w-full sm:w-auto flex justify-center sm:justify-end">
+                <DateSelector
+                  activeDate={activeDate}
+                  statusParam={statusParam}
+                  leagueParam={leagueParam}
+                  teamParam={teamParam}
+                  todayStr={todayStr}
+                />
+              </div>
+            )}
+          </div>
 
           {/* Mensagem de Erro de Ligação à API */}
           {errorMsg && (
@@ -743,69 +643,7 @@ export default async function Home({ searchParams }: PageProps) {
           )}
         </section>
 
-        {/* COLUNA DIREITA: Calendário Mensal (apenas em xl+) */}
-        <aside className="hidden xl:block xl:col-span-3 space-y-6 sticky top-24 select-none">
-          {statusParam !== 'live' && (
-            <div className="backdrop-blur-md bg-zinc-900/20 border border-zinc-800/60 rounded-3xl p-5 shadow-lg flex flex-col">
-              
-              {/* Header: Month name & navigation */}
-              <div className="flex items-center justify-between mb-4 border-b border-zinc-900 pb-3">
-                <span className="text-xs font-bold text-zinc-300 capitalize">
-                  {monthNameLabel}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <Link
-                    href={`/?date=${prevMonthDateStr}${statusParam !== 'all' ? `&status=${statusParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
-                    className="p-1 rounded-md border border-zinc-800 bg-zinc-950/40 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all active:scale-95 cursor-pointer"
-                    title="Mês Anterior"
-                  >
-                    <ChevronUp className="w-3.5 h-3.5" />
-                  </Link>
-                  <Link
-                    href={`/?date=${nextMonthDateStr}${statusParam !== 'all' ? `&status=${statusParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
-                    className="p-1 rounded-md border border-zinc-800 bg-zinc-950/40 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all active:scale-95 cursor-pointer"
-                    title="Mês Seguinte"
-                  >
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </div>
 
-              {/* Weekdays */}
-              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black text-zinc-500 mb-2">
-                {WEEKDAYS.map((day, idx) => (
-                  <div key={idx} className="h-8 flex items-center justify-center uppercase font-mono">
-                    {day}
-                  </div>
-                ))}
-              </div>
-
-              {/* Day cells */}
-              <div className="grid grid-cols-7 gap-1 text-center text-xs">
-                {calendarDays.map((day, idx) => {
-                  const isActive = activeDate === day.dateStr
-                  return (
-                    <Link
-                      key={idx}
-                      href={`/?date=${day.dateStr}${statusParam !== 'all' ? `&status=${statusParam}` : ''}${leagueParam ? `&league=${leagueParam}` : ''}`}
-                      className={`h-8 flex items-center justify-center rounded-lg transition-all ${
-                        isActive
-                          ? 'border border-zinc-300 bg-zinc-800 text-white font-extrabold shadow shadow-black/80'
-                          : day.isToday
-                            ? 'border border-indigo-500/40 text-indigo-300 font-bold bg-indigo-500/5 hover:bg-indigo-500/10'
-                            : day.isCurrentMonth
-                              ? 'text-zinc-200 hover:bg-zinc-850 font-semibold'
-                              : 'text-zinc-650 hover:bg-zinc-850/40 font-normal'
-                      }`}
-                    >
-                      {day.dayNum}
-                    </Link>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </aside>
       </main>
 
       {/* Footer */}
