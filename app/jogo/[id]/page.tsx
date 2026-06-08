@@ -166,7 +166,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
 
       {/* Mini-Header de navegação */}
       <header className="z-50 border-b border-zinc-900 bg-zinc-950/40 backdrop-blur-md sticky top-0">
-        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="max-w-none px-6 md:px-8 h-16 flex items-center justify-between">
           <Link
             href="/"
             className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-white transition-colors"
@@ -192,7 +192,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
       </header>
 
       {/* Main Content Area */}
-      <main className="z-10 flex-1 max-w-4xl w-full mx-auto px-4 py-8 space-y-8">
+      <main className="z-10 flex-1 max-w-none w-full px-6 md:px-8 py-8 space-y-8">
         
         {/* CABEÇALHO DO PLACAR (SCOREBOARD) */}
         <section className="backdrop-blur-xl bg-zinc-900/40 border border-zinc-800 rounded-3xl p-6 md:p-8 shadow-xl">

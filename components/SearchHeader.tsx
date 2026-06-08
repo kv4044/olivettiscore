@@ -34,6 +34,7 @@ interface TeamResult {
 interface PlayerResult {
   id: string
   email: string
+  name?: string
   points: number
   rank: number
 }
@@ -47,6 +48,7 @@ interface SearchResults {
 interface PlayerDetails {
   profile: {
     email: string
+    name?: string
     points: number
     rank: number
     createdAt: string
@@ -454,7 +456,9 @@ export default function SearchHeader() {
                               #{player.rank}
                             </div>
                             <div>
-                              <p className="text-xs font-extrabold text-zinc-200 group-hover:text-indigo-300">{player.email}</p>
+                              <p className="text-xs font-extrabold text-zinc-200 group-hover:text-indigo-300">
+                                {player.name || player.email}
+                              </p>
                               <p className="text-[9px] text-zinc-550 font-semibold mt-0.5">Pontuação: <span className="text-indigo-400 font-bold">{player.points} PTS</span></p>
                             </div>
                           </div>
@@ -487,7 +491,9 @@ export default function SearchHeader() {
                   <Users className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-extrabold text-zinc-100">Perfil de Olivetti Score</h4>
+                  <h4 className="text-sm font-extrabold text-zinc-100">
+                    {playerDetails ? (playerDetails.profile.name || playerDetails.profile.email) : 'Perfil de Olivetti Score'}
+                  </h4>
                   <p className="text-[10px] text-zinc-500">Detalhes de desempenho e palpites públicos</p>
                 </div>
               </div>

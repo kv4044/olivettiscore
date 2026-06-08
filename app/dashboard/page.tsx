@@ -18,6 +18,7 @@ import {
   CheckCircle,
   AlertTriangle
 } from 'lucide-react'
+import RefreshButton from '@/components/RefreshButton'
 
 export const revalidate = 0 // Forçar renderização dinâmica para sempre mostrar dados atualizados
 
@@ -65,7 +66,7 @@ export default async function DashboardPage() {
   // 3. Obter Classificação Geral (Leaderboard) - Top 10 utilizadores
   const { data: leaderboardData } = await supabase
     .from('profiles')
-    .select('email, points')
+    .select('email, points, first_name, last_name')
     .order('points', { ascending: false })
     .limit(10)
 
@@ -149,7 +150,7 @@ export default async function DashboardPage() {
 
       {/* Header/Navbar */}
       <header className="z-50 border-b border-zinc-900 bg-zinc-950/40 backdrop-blur-md sticky top-0">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="max-w-none px-6 md:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link
               href="/"
@@ -178,7 +179,7 @@ export default async function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="z-10 flex-1 max-w-6xl w-full mx-auto px-4 py-8 space-y-8">
+      <main className="z-10 flex-1 max-w-none w-full px-6 md:px-8 py-8 space-y-8">
         
         {/* SECÇÃO SUPERIOR: Resumo de Pontos e Perfil */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -200,30 +201,21 @@ export default async function DashboardPage() {
             <div className="mt-6 border-t border-zinc-850 pt-4 flex items-center justify-between">
               <span className="text-[10px] text-zinc-500">Acertar vencedor = +5 pontos</span>
               
-              {/* Botão de Sincronização de Pontos Rápida */}
-              <a
-                href={`/api/predictions/calculate?secret=${process.env.SYNC_SECRET || ''}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-indigo-500/10 hover:bg-indigo-500 hover:text-white text-indigo-300 transition-all cursor-pointer"
-                title="Recalcular prognósticos finalizados"
-              >
-                <RefreshCw className="w-3 h-3" />
-                <span>Atualizar Pontos</span>
-              </a>
+              {/* Botão de Sincronização de Pontos Rápida (Recarrega a página) */}
+              <RefreshButton className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-indigo-500/10 hover:bg-indigo-500 hover:text-white text-indigo-300 transition-all cursor-pointer" />
             </div>
           </div>
 
           {/* Cartão de Conta do Utilizador */}
           <div className="md:col-span-2 backdrop-blur-xl bg-zinc-900/40 border border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Nome e Apelido */}
+              {/* Nome completo */}
               <div className="flex items-center gap-3 p-3 rounded-2xl bg-zinc-950/40 border border-zinc-850">
                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
                   <User className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-[9px] text-zinc-550 uppercase tracking-wider font-bold">Nome e Apelido</p>
+                  <p className="text-[9px] text-zinc-550 uppercase tracking-wider font-bold">Nome completo</p>
                   <p className="text-xs font-semibold text-zinc-200 mt-0.5">
                     {fullName || 'Não especificado'}
                   </p>
@@ -264,10 +256,6 @@ export default async function DashboardPage() {
               </div>
             </div>
 
-            <div className="mt-4 p-3 rounded-2xl bg-zinc-950/20 border border-zinc-850/60 text-xxs text-zinc-500 flex items-center gap-2">
-              <User className="w-3.5 h-3.5 text-zinc-600" />
-              <span>UID: <span className="font-mono text-zinc-400 select-all">{user.id}</span></span>
-            </div>
           </div>
 
         </div>
@@ -384,10 +372,15 @@ export default async function DashboardPage() {
                             {rank}
                           </div>
 
-                          {/* Email (masked) */}
-                          <span className={`text-xs font-semibold ${isOwnProfile ? 'text-indigo-300 font-extrabold' : 'text-zinc-300'}`}>
-                            {maskEmail(profileRow.email)} {isOwnProfile && '(Eu)'}
-                          </span>
+                           {/* Nome Completo */}
+                           <span className={`text-xs font-semibold ${isOwnProfile ? 'text-indigo-300 font-extrabold' : 'text-zinc-300'}`}>
+                             {(() => {
+                               const fName = profileRow.first_name || ''
+                               const lName = profileRow.last_name || ''
+                               const fullName = [fName, lName].filter(Boolean).join(' ')
+                               return fullName || maskEmail(profileRow.email)
+                             })()} {isOwnProfile && '(Eu)'}
+                           </span>
                         </div>
 
                         {/* Points */}

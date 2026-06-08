@@ -219,7 +219,7 @@ export default async function Home({ searchParams }: PageProps) {
 
       {/* Header/Navbar */}
       <header className="z-50 border-b border-zinc-800/60 bg-zinc-950/70 backdrop-blur-md sticky top-0">
-        <div className="max-w-8xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-none px-6 md:px-8 h-16 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3 group shrink-0">
             <div className="flex items-center justify-center w-9 h-9 rounded-xl overflow-hidden shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-all bg-zinc-900">
               <img src="/logo.png" alt="Olivetti Score Logo" className="w-full h-full object-cover" />
@@ -273,7 +273,7 @@ export default async function Home({ searchParams }: PageProps) {
       </header>
 
       {/* Main App Container */}
-      <main className="z-10 flex-1 max-w-8xl w-full mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <main className="z-10 flex-1 max-w-none w-full px-6 md:px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         {/* COLUNA ESQUERDA: Sidebar de Ligas */}
         <aside className="lg:col-span-3 space-y-6 sticky top-24">

@@ -18,7 +18,7 @@ export async function GET(
     // 1. Procurar Perfil do Utilizador
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('email, points, updated_at')
+      .select('email, points, updated_at, first_name, last_name')
       .eq('id', userId)
       .maybeSingle()
 
@@ -90,9 +90,14 @@ export async function GET(
       })
     )
 
+    const fName = profile.first_name || ''
+    const lName = profile.last_name || ''
+    const fullName = [fName, lName].filter(Boolean).join(' ')
+
     return NextResponse.json({
       profile: {
         email: maskEmail(profile.email),
+        name: fullName || maskEmail(profile.email),
         points: profile.points,
         rank,
         updatedAt: profile.updated_at,
