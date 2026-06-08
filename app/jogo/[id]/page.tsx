@@ -20,6 +20,7 @@ import {
 interface MatchPageProps {
   params: Promise<{ id: string }>;
 }
+import { getFlagUrl } from '@/utils/flags'
 
 export const revalidate = 10 // Revalidar a página a cada 10 segundos para score live
 
@@ -199,67 +200,75 @@ export default async function MatchPage({ params }: MatchPageProps) {
           
           {/* Informações da Liga e Tempo */}
           <div className="flex flex-col items-center gap-3 text-center mb-6 border-b border-zinc-850 pb-4">
-            <span className="text-[10px] uppercase font-black tracking-widest text-indigo-400 bg-indigo-500/5 px-2.5 py-0.5 rounded border border-indigo-950/50">
-              {event.league.name} {event.league.country ? `· ${event.league.country}` : ''}
-            </span>
+            <Link href={`/liga/${event.league.id}`} className="hover:opacity-85 transition-opacity">
+              <span className="inline-flex items-center gap-1.5 text-[10px] uppercase font-black tracking-widest text-indigo-400 bg-indigo-500/5 px-2.5 py-0.5 rounded border border-indigo-950/50">
+                {getFlagUrl(event.league.country) && (
+                  <img 
+                    src={getFlagUrl(event.league.country)!} 
+                    alt="" 
+                    className="w-3.5 h-2.5 object-cover rounded-sm shrink-0"
+                  />
+                )}
+                <span>{event.league.name} {event.league.country ? `· ${event.league.country}` : ''}</span>
+              </span>
+            </Link>
             {renderTimeHeader()}
           </div>
 
           {/* Teams and Score Grid */}
           <div className="grid grid-cols-12 items-center gap-4">
             {/* Equipa da Casa */}
-            <div className="col-span-4 flex flex-col items-center text-center gap-3">
-              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-zinc-950/40 border border-zinc-850 flex items-center justify-center p-3.5 shadow-inner">
+            <Link 
+              href={`/equipa/${event.home_team.id}`}
+              className="col-span-4 flex flex-col items-center text-center gap-3 group hover:opacity-80 transition-opacity cursor-pointer"
+            >
+              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-zinc-950/40 border border-zinc-850 flex items-center justify-center p-3.5 shadow-inner group-hover:border-indigo-500/50 transition-colors">
                 {event.home_team.logo ? (
                   <img src={event.home_team.logo} alt="" className="w-full h-full object-contain" />
                 ) : (
                   <span className="text-xl font-black text-zinc-600">{event.home_team.name.substring(0, 2).toUpperCase()}</span>
                 )}
               </div>
-              <h2 className="font-extrabold text-sm md:text-base text-zinc-100 max-w-[120px] md:max-w-[160px] truncate leading-tight">
+              <h2 className="font-extrabold text-sm md:text-base text-zinc-100 max-w-[120px] md:max-w-[160px] truncate leading-tight group-hover:text-indigo-400 transition-colors">
                 {event.home_team.name}
               </h2>
-            </div>
+            </Link>
 
-            {/* Placar / Score */}
-            <div className="col-span-4 flex flex-col items-center justify-center text-center">
-              {event.status !== 'NS' ? (
-                <div className="flex items-center justify-center gap-3 md:gap-5">
-                  <span className="text-4xl md:text-5xl font-black text-white font-mono select-none">
-                    {event.score.home ?? 0}
+            {/* Placar central */}
+            <div className="col-span-4 flex flex-col items-center gap-2">
+              {event.status !== 'NS' && event.score.home !== null ? (
+                <div className="flex items-center gap-4">
+                  <span className="text-3xl md:text-5xl font-black font-mono tracking-tighter text-indigo-400 bg-indigo-500/5 px-4 py-2 border border-indigo-950 rounded-2xl shadow-inner min-w-[50px] md:min-w-[70px] text-center select-none">
+                    {event.score.home}
                   </span>
-                  <span className="text-zinc-700 text-xl font-bold font-mono">:</span>
-                  <span className="text-4xl md:text-5xl font-black text-white font-mono select-none">
-                    {event.score.away ?? 0}
+                  <span className="text-zinc-600 font-black text-sm md:text-base select-none">:</span>
+                  <span className="text-3xl md:text-5xl font-black font-mono tracking-tighter text-indigo-400 bg-indigo-500/5 px-4 py-2 border border-indigo-950 rounded-2xl shadow-inner min-w-[50px] md:min-w-[70px] text-center select-none">
+                    {event.score.away}
                   </span>
                 </div>
               ) : (
-                <span className="text-zinc-600 text-xs uppercase font-extrabold tracking-wider bg-zinc-950 px-4 py-1.5 border border-zinc-850 rounded-lg">
-                  Agendado
-                </span>
-              )}
-
-              {/* Marcadores de intervalo (se existirem) */}
-              {event.score.halftime && event.score.halftime.home !== null && (
-                <span className="text-[10px] text-zinc-500 font-semibold mt-3 bg-zinc-950/40 px-2 py-0.5 rounded border border-zinc-900">
-                  Int: {event.score.halftime.home} - {event.score.halftime.away}
-                </span>
+                <div className="text-xxs font-black text-zinc-550 uppercase tracking-widest bg-zinc-950/60 border border-zinc-850 px-4 py-2 rounded-xl shadow-inner select-none">
+                  Por começar
+                </div>
               )}
             </div>
 
             {/* Equipa de Fora */}
-            <div className="col-span-4 flex flex-col items-center text-center gap-3">
-              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-zinc-950/40 border border-zinc-850 flex items-center justify-center p-3.5 shadow-inner">
+            <Link 
+              href={`/equipa/${event.away_team.id}`}
+              className="col-span-4 flex flex-col items-center text-center gap-3 group hover:opacity-80 transition-opacity cursor-pointer"
+            >
+              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-zinc-950/40 border border-zinc-850 flex items-center justify-center p-3.5 shadow-inner group-hover:border-indigo-500/50 transition-colors">
                 {event.away_team.logo ? (
                   <img src={event.away_team.logo} alt="" className="w-full h-full object-contain" />
                 ) : (
                   <span className="text-xl font-black text-zinc-600">{event.away_team.name.substring(0, 2).toUpperCase()}</span>
                 )}
               </div>
-              <h2 className="font-extrabold text-sm md:text-base text-zinc-100 max-w-[120px] md:max-w-[160px] truncate leading-tight">
+              <h2 className="font-extrabold text-sm md:text-base text-zinc-100 max-w-[120px] md:max-w-[160px] truncate leading-tight group-hover:text-indigo-400 transition-colors">
                 {event.away_team.name}
               </h2>
-            </div>
+            </Link>
           </div>
 
           {/* Marcadores dos golos e cartões */}

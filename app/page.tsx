@@ -20,6 +20,7 @@ import {
   User
 } from 'lucide-react'
 import DateSelector from '@/components/matches/DateSelector'
+import { getFlagUrl } from '@/utils/flags'
 
 interface PageProps {
   searchParams: Promise<{
@@ -35,12 +36,13 @@ export const revalidate = 10 // Revalidar a página a cada 10 segundos
 // Lista estática de competições populares para a barra lateral
 const POPULAR_LEAGUES = [
   { id: 1, name: 'Premier League', country: 'Inglaterra', icon: 'GB' },
-  { id: 2, name: 'La Liga', country: 'Espanha', icon: 'ES' },
-  { id: 3, name: 'Serie A', country: 'Itália', icon: 'IT' },
-  { id: 4, name: 'Bundesliga', country: 'Alemanha', icon: 'DE' },
+  { id: 2, name: 'Liga Portugal', country: 'Portugal', icon: 'PT' },
+  { id: 3, name: 'La Liga', country: 'Espanha', icon: 'ES' },
+  { id: 4, name: 'Serie A', country: 'Itália', icon: 'IT' },
+  { id: 5, name: 'Bundesliga', country: 'Alemanha', icon: 'DE' },
   { id: 6, name: 'Ligue 1', country: 'França', icon: 'FR' },
-  { id: 7, name: 'Eredivisie', country: 'Holanda', icon: 'NL' },
-  { id: 8, name: 'Série A', country: 'Brasil', icon: 'BR' },
+  { id: 9, name: 'Série A', country: 'Brasil', icon: 'BR' },
+  { id: 10, name: 'Eredivisie', country: 'Holanda', icon: 'NL' },
   { id: 18, name: 'MLS', country: 'EUA', icon: 'US' },
 ]
 
@@ -324,15 +326,19 @@ export default async function Home({ searchParams }: PageProps) {
                 {POPULAR_LEAGUES.filter(l => favorites.leagues.includes(l.id)).map((league) => (
                   <li key={league.id}>
                     <Link
-                      href={`/?league=${league.id}`}
-                      className={`flex items-center justify-between text-xs px-2.5 py-2 rounded-lg transition-all ${
-                        leagueParam === String(league.id)
-                          ? 'bg-indigo-500/10 text-indigo-300 font-semibold border-l-2 border-indigo-500 pl-2'
-                          : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/50'
-                      }`}
+                      href={`/liga/${league.id}`}
+                      className="flex items-center justify-between text-xs px-2.5 py-2 rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/50"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-zinc-600 text-xxs font-bold">L#{league.id}</span>
+                        {getFlagUrl(league.country) ? (
+                          <img 
+                            src={getFlagUrl(league.country)!} 
+                            alt="" 
+                            className="w-4 h-2.5 object-cover rounded-sm"
+                          />
+                        ) : (
+                          <span className="font-mono text-zinc-650 text-xxs font-bold">L#{league.id}</span>
+                        )}
                         <span>{league.name}</span>
                       </div>
                       <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
@@ -365,20 +371,20 @@ export default async function Home({ searchParams }: PageProps) {
               </li>
               {POPULAR_LEAGUES.map((league) => (
                 <li key={league.id}>
-                  <div
-                    className={`flex items-center justify-between rounded-lg transition-all ${
-                      leagueParam === String(league.id)
-                        ? 'bg-indigo-500/10 text-indigo-300 font-semibold border-l-2 border-indigo-500 pl-2'
-                        : 'hover:bg-zinc-900/50'
-                    }`}
-                  >
+                  <div className="flex items-center justify-between rounded-lg transition-all hover:bg-zinc-900/50">
                     <Link
-                      href={`/?league=${league.id}`}
-                      className={`flex-1 flex items-center gap-2 text-xs px-2.5 py-2 transition-all ${
-                        leagueParam === String(league.id) ? 'text-indigo-300' : 'text-zinc-400 hover:text-zinc-200'
-                      }`}
+                      href={`/liga/${league.id}`}
+                      className="flex-1 flex items-center gap-2 text-xs px-2.5 py-2 transition-all text-zinc-400 hover:text-zinc-200"
                     >
-                      <span className="text-zinc-500 text-xxs font-mono">{league.icon}</span>
+                      {getFlagUrl(league.country) ? (
+                        <img 
+                          src={getFlagUrl(league.country)!} 
+                          alt="" 
+                          className="w-4 h-2.5 object-cover rounded-sm shrink-0"
+                        />
+                      ) : (
+                        <span className="text-zinc-550 text-xxs font-mono">{league.icon}</span>
+                      )}
                       <span className="truncate">{league.name}</span>
                     </Link>
                     <div className="flex items-center gap-1 pr-2">
@@ -535,11 +541,19 @@ export default async function Home({ searchParams }: PageProps) {
                     {/* Cabeçalho da Liga */}
                     <div className="bg-zinc-900/50 border-b border-zinc-850 px-4 py-3 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-6 h-6 rounded bg-zinc-950 text-xxs font-mono font-bold text-zinc-500">
-                          {league.country?.substring(0, 2).toUpperCase() || 'L'}
-                        </div>
-                        <div>
-                          <h3 className="font-extrabold text-sm text-zinc-200">
+                        {getFlagUrl(league.country) ? (
+                          <img 
+                            src={getFlagUrl(league.country)!} 
+                            alt={league.country} 
+                            className="w-5 h-3.5 object-cover rounded-sm shadow-sm"
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center w-6 h-6 rounded bg-zinc-950 text-xxs font-mono font-bold text-zinc-500">
+                            {league.country?.substring(0, 2).toUpperCase() || 'L'}
+                          </div>
+                        )}
+                        <Link href={`/liga/${league.id}`} className="group/league-link flex flex-col hover:opacity-85 transition-opacity">
+                          <h3 className="font-extrabold text-sm text-zinc-200 group-hover/league-link:text-indigo-400 transition-colors">
                             {league.name}
                           </h3>
                           {league.country && (
@@ -547,7 +561,7 @@ export default async function Home({ searchParams }: PageProps) {
                               {league.country}
                             </span>
                           )}
-                        </div>
+                        </Link>
                       </div>
 
                       {user && (

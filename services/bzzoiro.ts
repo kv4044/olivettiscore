@@ -97,15 +97,15 @@ interface RawBzzoiroEvent {
 
 const LEAGUE_NAMES: Record<number, { name: string; country: string }> = {
   1:  { name: 'Premier League',                 country: 'Inglaterra'    },
-  2:  { name: 'La Liga',                         country: 'Espanha'       },
-  3:  { name: 'Serie A',                         country: 'Itália'        },
-  4:  { name: 'Bundesliga',                      country: 'Alemanha'      },
-  5:  { name: '2. Bundesliga',                   country: 'Alemanha'      },
+  2:  { name: 'Liga Portugal',                  country: 'Portugal'      },
+  3:  { name: 'La Liga',                         country: 'Espanha'       },
+  4:  { name: 'Serie A',                         country: 'Itália'        },
+  5:  { name: 'Bundesliga',                      country: 'Alemanha'      },
   6:  { name: 'Ligue 1',                         country: 'França'        },
-  7:  { name: 'Eredivisie',                      country: 'Holanda'       },
-  8:  { name: 'Série A',                         country: 'Brasil'        },
-  9:  { name: 'Série B',                         country: 'Brasil'        },
-  13: { name: 'Scottish Premiership Playoffs',   country: 'Escócia'       },
+  7:  { name: 'Champions League',                country: 'Europa'        },
+  8:  { name: 'Europa League',                   country: 'Europa'        },
+  9:  { name: 'Série A',                         country: 'Brasil'        },
+  10: { name: 'Eredivisie',                      country: 'Holanda'       },
   18: { name: 'MLS',                             country: 'EUA'           },
   20: { name: 'Liga MX',                         country: 'México'        },
   22: { name: 'Parva Liga',                      country: 'Bulgária'      },
@@ -309,6 +309,13 @@ export const bzzoiroService = {
     const event = transformEvent(raw);
     const [enriched] = await enrichEventsWithLogos([event]);
     return enriched;
+  },
+
+  /**
+   * Retorna detalhes de uma equipa específica.
+   */
+  async getTeamDetails(teamId: number): Promise<any> {
+    return fetchBzzoiro<any>(`/teams/${teamId}/`);
   },
 
   /**

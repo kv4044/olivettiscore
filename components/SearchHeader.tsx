@@ -16,6 +16,7 @@ import {
   Sparkles,
   Award
 } from 'lucide-react'
+import { getFlagUrl } from '@/utils/flags'
 
 interface LeagueResult {
   id: number
@@ -204,9 +205,9 @@ export default function SearchHeader() {
     setIsOpen(false)
     startTransition(() => {
       if (type === 'league') {
-        router.push(`/?league=${id}`)
+        router.push(`/liga/${id}`)
       } else if (type === 'team') {
-        router.push(`/?team=${id}`)
+        router.push(`/equipa/${id}`)
       }
     })
   }
@@ -387,9 +388,17 @@ export default function SearchHeader() {
                           className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/20 border border-zinc-850 hover:bg-zinc-800/40 hover:border-zinc-850 transition-all cursor-pointer group"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-7 h-7 rounded-lg bg-zinc-950 flex items-center justify-center text-xxs font-mono font-bold text-zinc-500">
-                              {league.country?.substring(0, 2).toUpperCase() || 'L'}
-                            </div>
+                            {getFlagUrl(league.country) ? (
+                              <img 
+                                src={getFlagUrl(league.country)!} 
+                                alt={league.country} 
+                                className="w-7 h-5 object-cover rounded-sm shadow-sm"
+                              />
+                            ) : (
+                              <div className="w-7 h-7 rounded-lg bg-zinc-950 flex items-center justify-center text-xxs font-mono font-bold text-zinc-500">
+                                {league.country?.substring(0, 2).toUpperCase() || 'L'}
+                              </div>
+                            )}
                             <div>
                               <p className="text-xs font-bold text-zinc-200 group-hover:text-white">{league.name}</p>
                               {league.country && <p className="text-[9px] text-zinc-500 font-semibold mt-0.5">{league.country}</p>}
@@ -417,8 +426,14 @@ export default function SearchHeader() {
                           className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/20 border border-zinc-850 hover:bg-zinc-800/40 hover:border-zinc-850 transition-all cursor-pointer group"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-7 h-7 rounded-lg bg-purple-500/5 border border-purple-950 flex items-center justify-center text-[10px] font-black text-purple-400">
-                              {team.short_name || team.name.substring(0, 2).toUpperCase()}
+                            <div className="w-7 h-7 rounded-lg bg-zinc-950 border border-zinc-850 flex items-center justify-center overflow-hidden shrink-0 shadow-inner p-0.5">
+                              {team.logo_url && team.logo_url !== 'no_logo' ? (
+                                <img src={team.logo_url} alt="" className="w-full h-full object-contain" />
+                              ) : (
+                                <span className="text-[10px] font-black text-purple-400">
+                                  {team.short_name || team.name.substring(0, 2).toUpperCase()}
+                                </span>
+                              )}
                             </div>
                             <div>
                               <p className="text-xs font-bold text-zinc-200 group-hover:text-white">{team.name}</p>
