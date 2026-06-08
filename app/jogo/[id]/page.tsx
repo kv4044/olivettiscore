@@ -199,8 +199,11 @@ export default async function MatchPage({ params }: MatchPageProps) {
           
           {/* Informações da Liga e Tempo */}
           <div className="flex flex-col items-center gap-3 text-center mb-6 border-b border-zinc-850 pb-4">
-            <span className="text-[10px] uppercase font-black tracking-widest text-indigo-400 bg-indigo-500/5 px-2.5 py-0.5 rounded border border-indigo-950/50">
-              {event.league.name} {event.league.country ? `· ${event.league.country}` : ''}
+            <span className="inline-flex items-center gap-1.5 text-[10px] uppercase font-black tracking-widest text-indigo-400 bg-indigo-500/5 px-2.5 py-1 rounded border border-indigo-950/50">
+              {event.league.logo && (
+                <img src={event.league.logo} alt="" className="w-3.5 h-3.5 object-contain shrink-0" />
+              )}
+              <span>{event.league.name} {event.league.country ? `· ${event.league.country}` : ''}</span>
             </span>
             {renderTimeHeader()}
           </div>

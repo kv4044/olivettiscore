@@ -1,4 +1,4 @@
-import { getTeamsLogos } from './logoService'
+import { getTeamsLogos, getLeaguesLogos } from './logoService'
 
 // ─── Interfaces do Frontend (o que o UI espera) ────────────────────────────
 
@@ -241,6 +241,7 @@ async function enrichEventsWithLogos(events: BzzoiroEvent[]): Promise<BzzoiroEve
   if (events.length === 0) return events;
 
   const teamsToResolve: { id: number; name: string }[] = [];
+  const leaguesToResolve: { id: number; name: string }[] = [];
   events.forEach((event) => {
     if (event.home_team && event.home_team.id && event.home_team.name) {
       teamsToResolve.push({ id: event.home_team.id, name: event.home_team.name });
@@ -248,16 +249,26 @@ async function enrichEventsWithLogos(events: BzzoiroEvent[]): Promise<BzzoiroEve
     if (event.away_team && event.away_team.id && event.away_team.name) {
       teamsToResolve.push({ id: event.away_team.id, name: event.away_team.name });
     }
+    if (event.league && event.league.id && event.league.name) {
+      leaguesToResolve.push({ id: event.league.id, name: event.league.name });
+    }
   });
 
   try {
-    const logoMap = await getTeamsLogos(teamsToResolve);
+    const [logoMap, leagueLogoMap] = await Promise.all([
+      getTeamsLogos(teamsToResolve),
+      getLeaguesLogos(leaguesToResolve)
+    ]);
+    
     events.forEach((event) => {
       if (event.home_team && logoMap[event.home_team.id]) {
         event.home_team.logo = logoMap[event.home_team.id];
       }
       if (event.away_team && logoMap[event.away_team.id]) {
         event.away_team.logo = logoMap[event.away_team.id];
+      }
+      if (event.league && leagueLogoMap[event.league.id]) {
+        event.league.logo = leagueLogoMap[event.league.id];
       }
     });
   } catch (error) {

@@ -140,3 +140,146 @@ export async function getTeamsLogos(teams: { id: number; name: string }[]): Prom
   
   return logoMap
 }
+
+// ─── Enriquecimento de Logos das Ligas ────────────────────────────────────────
+
+const BZZOIRO_TO_SPORTSDB_LEAGUE: Record<number, string> = {
+  1: '4328',   // Premier League (Inglaterra)
+  2: '4335',   // La Liga (Espanha)
+  3: '4332',   // Serie A (Itália)
+  4: '4331',   // Bundesliga (Alemanha)
+  5: '4393',   // 2. Bundesliga (Alemanha)
+  6: '4334',   // Ligue 1 (França)
+  7: '4337',   // Eredivisie (Holanda)
+  8: '4344',   // Série A (Brasil)
+  9: '4345',   // Série B (Brasil)
+  10: '4340',  // Primeira Liga (Portugal)
+  13: '4330',  // Scottish Premiership (Playoffs fallback)
+  18: '4346',  // MLS (EUA)
+  20: '4350',  // Liga MX (México)
+  26: '4338',  // Allsvenskan (Suécia)
+  34: '4791',  // Série C (Brasil)
+  54: '4339',  // Eliteserien (Noruega)
+}
+
+/**
+ * Procura o logo da liga no TheSportsDB através do ID mapeado.
+ */
+async function fetchLeagueLogoFromAPI(sportsDbId: string): Promise<string | null> {
+  const apiKey = process.env.THESPORTSDB_API_KEY || '3'
+  const url = `${THESPORTSDB_BASE_URL}/${apiKey}/lookupleague.php?id=${sportsDbId}`
+  
+  try {
+    const res = await fetch(url, { next: { revalidate: 86400 } }) // Cache de 1 dia na resposta HTTP
+    if (!res.ok) return null
+    
+    const data = await res.json()
+    if (!data.leagues || data.leagues.length === 0) return null
+    
+    return data.leagues[0].strBadge || null
+  } catch (error) {
+    console.error(`[LogoService] Erro ao obter logo da liga ID ${sportsDbId} do TheSportsDB:`, error)
+    return null
+  }
+}
+
+/**
+ * Obtém os logos das ligas especificadas. Consulta primeiro a base de dados
+ * e, em caso de miss (ou se o logo for nulo), pesquisa na API do TheSportsDB
+ * e guarda o resultado na base de dados em lote.
+ * 
+ * @param leagues Array de ligas com ID e Nome.
+ * @returns Um objeto mapeando o ID da liga para o URL do seu logo.
+ */
+export async function getLeaguesLogos(leagues: { id: number; name: string }[]): Promise<Record<number, string>> {
+  if (leagues.length === 0) return {}
+
+  // Deduplicar ligas recebidas pelo ID para otimizar queries
+  const uniqueLeaguesMap = new Map<number, string>()
+  leagues.forEach(l => {
+    if (l.id && l.name) {
+      uniqueLeaguesMap.set(l.id, l.name)
+    }
+  })
+  const uniqueLeagues = Array.from(uniqueLeaguesMap.entries()).map(([id, name]) => ({ id, name }))
+
+  const supabase = createAdminClient()
+  const leagueIds = uniqueLeagues.map(l => l.id)
+  
+  // Consultar base de dados para ver os logos já existentes
+  const { data: dbLeagues, error } = await supabase
+    .from('leagues')
+    .select('id, name, logo_url')
+    .in('id', leagueIds)
+    
+  if (error) {
+    console.error('[LogoService] Erro ao obter ligas da base de dados:', error)
+  }
+  
+  const logoMap: Record<number, string> = {}
+  const dbLeagueMap = new Map<number, { logo_url: string | null; name: string }>()
+  
+  if (dbLeagues) {
+    dbLeagues.forEach(l => {
+      dbLeagueMap.set(Number(l.id), { logo_url: l.logo_url, name: l.name })
+    })
+  }
+  
+  const recordsToUpsert: { id: number; name: string; logo_url: string; updated_at: string }[] = []
+  
+  // Processar cada liga
+  const apiFetchPromises = uniqueLeagues.map(async (league) => {
+    const dbLeague = dbLeagueMap.get(league.id)
+    
+    // Se a liga já existe na BD e já tem um logo definido (ou marcador 'no_logo')
+    if (dbLeague && dbLeague.logo_url !== null) {
+      if (dbLeague.logo_url && dbLeague.logo_url !== 'no_logo') {
+        logoMap[league.id] = dbLeague.logo_url
+      }
+      return
+    }
+    
+    // Cache miss
+    const sportsDbId = BZZOIRO_TO_SPORTSDB_LEAGUE[league.id]
+    let logoUrl: string | null = null
+    
+    if (sportsDbId) {
+      console.log(`[LogoService] Cache miss para liga ${league.name} (ID: ${league.id}). A pesquisar no TheSportsDB...`)
+      logoUrl = await fetchLeagueLogoFromAPI(sportsDbId)
+    } else {
+      console.log(`[LogoService] Liga ${league.name} (ID: ${league.id}) sem mapeamento para TheSportsDB.`)
+    }
+    
+    const finalLogoUrl = logoUrl || 'no_logo'
+    
+    recordsToUpsert.push({
+      id: league.id,
+      name: league.name,
+      logo_url: finalLogoUrl,
+      updated_at: new Date().toISOString()
+    })
+    
+    if (logoUrl) {
+      logoMap[league.id] = logoUrl
+    }
+  })
+  
+  // Esperar por todas as consultas concorrentes
+  await Promise.all(apiFetchPromises)
+  
+  // Efetuar upsert dos novos logos em lote
+  if (recordsToUpsert.length > 0) {
+    console.log(`[LogoService] A guardar ${recordsToUpsert.length} logos de ligas na base de dados...`)
+    const { error: upsertError } = await supabase
+      .from('leagues')
+      .upsert(recordsToUpsert, { onConflict: 'id' })
+      
+    if (upsertError) {
+      console.error('[LogoService] Erro ao atualizar/inserir logos de ligas na base de dados:', upsertError)
+    } else {
+      console.log('[LogoService] Logos de ligas guardados com sucesso!')
+    }
+  }
+  
+  return logoMap
+}

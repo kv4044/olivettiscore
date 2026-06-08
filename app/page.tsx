@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
 import { bzzoiroService, BzzoiroEvent, BzzoiroLeague } from '@/services/bzzoiro'
 import { favoritesService, UserFavorites } from '@/services/favorites'
+import { getLeaguesLogos } from '@/services/logoService'
 import StarButton from '@/components/favorites/StarButton'
 import SearchHeader from '@/components/SearchHeader'
 import LocalTime from '@/components/LocalTime'
@@ -54,6 +55,11 @@ export default async function Home({ searchParams }: PageProps) {
   // 1. Autenticação e Pontos do Utilizador
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  // Obter logótipos das ligas populares para a barra lateral
+  const popularLeaguesWithLogos = await getLeaguesLogos(
+    POPULAR_LEAGUES.map(l => ({ id: l.id, name: l.name }))
+  )
 
   let userPoints = 0
   let favorites: UserFavorites = { leagues: [], teams: [], matches: [] }
@@ -332,7 +338,11 @@ export default async function Home({ searchParams }: PageProps) {
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-zinc-600 text-xxs font-bold">L#{league.id}</span>
+                        {popularLeaguesWithLogos[league.id] ? (
+                          <img src={popularLeaguesWithLogos[league.id]} alt="" className="w-4 h-4 object-contain shrink-0" />
+                        ) : (
+                          <span className="font-mono text-zinc-600 text-xxs font-bold">L#{league.id}</span>
+                        )}
                         <span>{league.name}</span>
                       </div>
                       <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
@@ -378,7 +388,11 @@ export default async function Home({ searchParams }: PageProps) {
                         leagueParam === String(league.id) ? 'text-indigo-300' : 'text-zinc-400 hover:text-zinc-200'
                       }`}
                     >
-                      <span className="text-zinc-500 text-xxs font-mono">{league.icon}</span>
+                      {popularLeaguesWithLogos[league.id] ? (
+                        <img src={popularLeaguesWithLogos[league.id]} alt="" className="w-4 h-4 object-contain shrink-0" />
+                      ) : (
+                        <span className="text-zinc-500 text-xxs font-mono">{league.icon}</span>
+                      )}
                       <span className="truncate">{league.name}</span>
                     </Link>
                     <div className="flex items-center gap-1 pr-2">
@@ -535,8 +549,12 @@ export default async function Home({ searchParams }: PageProps) {
                     {/* Cabeçalho da Liga */}
                     <div className="bg-zinc-900/50 border-b border-zinc-850 px-4 py-3 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-6 h-6 rounded bg-zinc-950 text-xxs font-mono font-bold text-zinc-500">
-                          {league.country?.substring(0, 2).toUpperCase() || 'L'}
+                        <div className="flex items-center justify-center w-6 h-6 rounded bg-zinc-950 overflow-hidden text-xxs font-mono font-bold text-zinc-500 shrink-0">
+                          {league.logo ? (
+                            <img src={league.logo} alt="" className="w-full h-full object-contain" />
+                          ) : (
+                            league.country?.substring(0, 2).toUpperCase() || 'L'
+                          )}
                         </div>
                         <div>
                           <h3 className="font-extrabold text-sm text-zinc-200">
