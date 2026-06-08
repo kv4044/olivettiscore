@@ -19,6 +19,7 @@ import {
   AlertTriangle
 } from 'lucide-react'
 import RefreshButton from '@/components/RefreshButton'
+import LeaderboardSection from '@/components/LeaderboardSection'
 
 export const revalidate = 0 // Forçar renderização dinâmica para sempre mostrar dados atualizados
 
@@ -66,7 +67,7 @@ export default async function DashboardPage() {
   // 3. Obter Classificação Geral (Leaderboard) - Top 10 utilizadores
   const { data: leaderboardData } = await supabase
     .from('profiles')
-    .select('email, points, first_name, last_name')
+    .select('id, email, points, first_name, last_name')
     .order('points', { ascending: false })
     .limit(10)
 
@@ -336,68 +337,12 @@ export default async function DashboardPage() {
           </div>
 
           {/* CLASSIFICAÇÃO GERAL / LEADERBOARD (Lado Direito - 5/12 colunas) */}
-          <div className="lg:col-span-5 space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-              <Trophy className="w-4 h-4 text-amber-400" />
-              <span>Classificação Geral</span>
-            </h3>
-
-            <div className="backdrop-blur-xl bg-zinc-900/20 border border-zinc-800/60 rounded-3xl overflow-hidden shadow-lg">
-              {leaderboard.length === 0 ? (
-                <div className="p-8 text-center text-zinc-500 text-xs">
-                  Sem dados de utilizadores disponíveis no momento.
-                </div>
-              ) : (
-                <div className="divide-y divide-zinc-900/60">
-                  {leaderboard.map((profileRow, index) => {
-                    const rank = index + 1
-                    const isOwnProfile = profileRow.email === user.email
-
-                    // Cores de pódio
-                    let rankBadge = 'text-zinc-400 bg-zinc-950 border-zinc-850'
-                    if (rank === 1) rankBadge = 'text-amber-400 bg-amber-500/10 border-amber-500/20 font-black'
-                    if (rank === 2) rankBadge = 'text-zinc-300 bg-zinc-300/10 border-zinc-300/20 font-black'
-                    if (rank === 3) rankBadge = 'text-amber-600 bg-amber-600/10 border-amber-600/20 font-black'
-
-                    return (
-                      <div
-                        key={index}
-                        className={`flex items-center justify-between p-3.5 px-4 gap-4 transition-colors ${
-                          isOwnProfile ? 'bg-indigo-500/5 border-l-2 border-indigo-500 pl-3.5' : ''
-                        }`}
-                      >
-                        <div className="flex items-center gap-3.5">
-                          {/* Rank Circle */}
-                          <div className={`w-6 h-6 rounded-lg border flex items-center justify-center text-xxs font-mono ${rankBadge}`}>
-                            {rank}
-                          </div>
-
-                           {/* Nome Completo */}
-                           <span className={`text-xs font-semibold ${isOwnProfile ? 'text-indigo-300 font-extrabold' : 'text-zinc-300'}`}>
-                             {(() => {
-                               const fName = profileRow.first_name || ''
-                               const lName = profileRow.last_name || ''
-                               const fullName = [fName, lName].filter(Boolean).join(' ')
-                               return fullName || maskEmail(profileRow.email)
-                             })()} {isOwnProfile && '(Eu)'}
-                           </span>
-                        </div>
-
-                        {/* Points */}
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-xs font-black ${isOwnProfile ? 'text-indigo-400' : 'text-zinc-200'}`}>
-                            {profileRow.points}
-                          </span>
-                          <span className="text-[9px] font-bold text-zinc-600 uppercase">PTS</span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+          <div className="lg:col-span-5">
+            <LeaderboardSection
+              initialLeaderboard={leaderboard}
+              currentUserId={user.id}
+            />
           </div>
-
         </div>
 
       </main>
