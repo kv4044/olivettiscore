@@ -592,9 +592,23 @@ export default async function Home({ searchParams }: PageProps) {
                             >
                               <div className="flex flex-col gap-2 flex-1">
                                 <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-zinc-300 group-hover:text-white transition-colors">
+                                  {event.home_team.logo ? (
+                                    <img src={event.home_team.logo} alt="" className="w-4 h-4 object-contain shrink-0" />
+                                  ) : (
+                                    <div className="w-4 h-4 rounded bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[8px] font-black text-zinc-500 shrink-0 select-none">
+                                      {event.home_team.name.substring(0, 2).toUpperCase()}
+                                    </div>
+                                  )}
                                   <span>{event.home_team.name}</span>
                                 </div>
                                 <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-zinc-300 group-hover:text-white transition-colors">
+                                  {event.away_team.logo ? (
+                                    <img src={event.away_team.logo} alt="" className="w-4 h-4 object-contain shrink-0" />
+                                  ) : (
+                                    <div className="w-4 h-4 rounded bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[8px] font-black text-zinc-500 shrink-0 select-none">
+                                      {event.away_team.name.substring(0, 2).toUpperCase()}
+                                    </div>
+                                  )}
                                   <span>{event.away_team.name}</span>
                                 </div>
                               </div>

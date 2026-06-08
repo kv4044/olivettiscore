@@ -1,3 +1,5 @@
+import { getTeamsLogos } from './logoService'
+
 // ─── Interfaces do Frontend (o que o UI espera) ────────────────────────────
 
 export interface BzzoiroTeam {
@@ -233,6 +235,38 @@ async function fetchRawEvents(endpoint: string, params: Record<string, string> =
   }
 }
 
+// ─── Enriquecimento de Logos ──────────────────────────────────────────────────
+
+async function enrichEventsWithLogos(events: BzzoiroEvent[]): Promise<BzzoiroEvent[]> {
+  if (events.length === 0) return events;
+
+  const teamsToResolve: { id: number; name: string }[] = [];
+  events.forEach((event) => {
+    if (event.home_team && event.home_team.id && event.home_team.name) {
+      teamsToResolve.push({ id: event.home_team.id, name: event.home_team.name });
+    }
+    if (event.away_team && event.away_team.id && event.away_team.name) {
+      teamsToResolve.push({ id: event.away_team.id, name: event.away_team.name });
+    }
+  });
+
+  try {
+    const logoMap = await getTeamsLogos(teamsToResolve);
+    events.forEach((event) => {
+      if (event.home_team && logoMap[event.home_team.id]) {
+        event.home_team.logo = logoMap[event.home_team.id];
+      }
+      if (event.away_team && logoMap[event.away_team.id]) {
+        event.away_team.logo = logoMap[event.away_team.id];
+      }
+    });
+  } catch (error) {
+    console.error('[BzzoiroService] Erro ao enriquecer eventos com logos:', error);
+  }
+
+  return events;
+}
+
 // ─── Service Público ─────────────────────────────────────────────────────────
 
 export const bzzoiroService = {
@@ -241,7 +275,8 @@ export const bzzoiroService = {
    */
   async getLiveEvents(): Promise<BzzoiroEvent[]> {
     const raw = await fetchRawEvents('/events/live/');
-    return raw.map(transformEvent);
+    const events = raw.map(transformEvent);
+    return enrichEventsWithLogos(events);
   },
 
   /**
@@ -262,7 +297,8 @@ export const bzzoiroService = {
     if (params.status)     queryParams.status     = params.status;
 
     const raw = await fetchRawEvents('/events/', queryParams);
-    return raw.map(transformEvent);
+    const events = raw.map(transformEvent);
+    return enrichEventsWithLogos(events);
   },
 
   /**
@@ -270,7 +306,9 @@ export const bzzoiroService = {
    */
   async getEventDetails(eventId: number): Promise<BzzoiroEvent> {
     const raw = await fetchBzzoiro<RawBzzoiroEvent>(`/events/${eventId}/`);
-    return transformEvent(raw);
+    const event = transformEvent(raw);
+    const [enriched] = await enrichEventsWithLogos([event]);
+    return enriched;
   },
 
   /**
