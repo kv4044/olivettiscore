@@ -191,97 +191,48 @@ async function fetchLeagueLogoFromAPI(sportsDbId: string): Promise<string | null
  * @param leagues Array de ligas com ID e Nome.
  * @returns Um objeto mapeando o ID da liga para o URL do seu logo.
  */
-export async function getLeaguesLogos(leagues: { id: number; name: string }[]): Promise<Record<number, string>> {
-  if (leagues.length === 0) return {}
-
-  // Deduplicar ligas recebidas pelo ID para otimizar queries
-  const uniqueLeaguesMap = new Map<number, string>()
-  leagues.forEach(l => {
-    if (l.id && l.name) {
-      uniqueLeaguesMap.set(l.id, l.name)
-    }
-  })
-  const uniqueLeagues = Array.from(uniqueLeaguesMap.entries()).map(([id, name]) => ({ id, name }))
-
-  const supabase = createAdminClient()
-  const leagueIds = uniqueLeagues.map(l => l.id)
+/**
+ * Procura os detalhes da liga na API Bzzoiro.
+ */
+async function fetchLeagueFromBzzoiro(leagueId: number): Promise<{ name: string; country: string | null } | null> {
+  const apiKey = process.env.BZZOIRO_API_KEY
+  if (!apiKey) return null
   
-  // Consultar base de dados para ver os logos já existentes
-  const { data: dbLeagues, error } = await supabase
-    .from('leagues')
-    .select('id, name, logo_url')
-    .in('id', leagueIds)
-    
-  if (error) {
-    console.error('[LogoService] Erro ao obter ligas da base de dados:', error)
-  }
-  
-  const logoMap: Record<number, string> = {}
-  const dbLeagueMap = new Map<number, { logo_url: string | null; name: string }>()
-  
-  if (dbLeagues) {
-    dbLeagues.forEach(l => {
-      dbLeagueMap.set(Number(l.id), { logo_url: l.logo_url, name: l.name })
-    })
-  }
-  
-  const recordsToUpsert: { id: number; name: string; logo_url: string; updated_at: string }[] = []
-  
-  // Processar cada liga
-  const apiFetchPromises = uniqueLeagues.map(async (league) => {
-    const dbLeague = dbLeagueMap.get(league.id)
-    
-    // Se a liga já existe na BD e já tem um logo definido (ou marcador 'no_logo')
-    if (dbLeague && dbLeague.logo_url !== null) {
-      if (dbLeague.logo_url && dbLeague.logo_url !== 'no_logo') {
-        logoMap[league.id] = dbLeague.logo_url
+  try {
+    const res = await fetch(`https://sports.bzzoiro.com/api/v2/leagues/${leagueId}/`, {
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Accept': 'application/json',
       }
-      return
-    }
-    
-    // Cache miss
-    const sportsDbId = BZZOIRO_TO_SPORTSDB_LEAGUE[league.id]
-    let logoUrl: string | null = null
-    
-    if (sportsDbId) {
-      console.log(`[LogoService] Cache miss para liga ${league.name} (ID: ${league.id}). A pesquisar no TheSportsDB...`)
-      logoUrl = await fetchLeagueLogoFromAPI(sportsDbId)
-    } else {
-      console.log(`[LogoService] Liga ${league.name} (ID: ${league.id}) sem mapeamento para TheSportsDB.`)
-    }
-    
-    const finalLogoUrl = logoUrl || 'no_logo'
-    const finalName = (dbLeague && dbLeague.name) ? dbLeague.name : league.name
-    
-    recordsToUpsert.push({
-      id: league.id,
-      name: finalName,
-      logo_url: finalLogoUrl,
-      updated_at: new Date().toISOString()
     })
-    
-    if (logoUrl) {
-      logoMap[league.id] = logoUrl
+    if (!res.ok) return null
+    const data = await res.json()
+    return {
+      name: data.name,
+      country: data.country || null
+    }
+  } catch (error) {
+    console.error(`[LogoService] Erro ao obter liga ID ${leagueId} da API Bzzoiro:`, error)
+    return null
+  }
+}
+
+/**
+ * Obtém os logos das ligas especificadas. Consulta primeiro a base de dados
+ * e, em caso de miss (ou se o logo for nulo), pesquisa na API do TheSportsDB
+ * e guarda o resultado na base de dados em lote.
+ * 
+ * @param leagues Array de ligas com ID e Nome.
+ * @returns Um objeto mapeando o ID da liga para o URL do seu logo.
+ */
+export async function getLeaguesLogos(leagues: { id: number; name: string }[]): Promise<Record<number, string>> {
+  const details = await getLeaguesDetails(leagues)
+  const logoMap: Record<number, string> = {}
+  Object.entries(details).forEach(([id, detail]) => {
+    if (detail.logoUrl) {
+      logoMap[Number(id)] = detail.logoUrl
     }
   })
-  
-  // Esperar por todas as consultas concorrentes
-  await Promise.all(apiFetchPromises)
-  
-  // Efetuar upsert dos novos logos em lote
-  if (recordsToUpsert.length > 0) {
-    console.log(`[LogoService] A guardar ${recordsToUpsert.length} logos de ligas na base de dados...`)
-    const { error: upsertError } = await supabase
-      .from('leagues')
-      .upsert(recordsToUpsert, { onConflict: 'id' })
-      
-    if (upsertError) {
-      console.error('[LogoService] Erro ao atualizar/inserir logos de ligas na base de dados:', upsertError)
-    } else {
-      console.log('[LogoService] Logos de ligas guardados com sucesso!')
-    }
-  }
-  
   return logoMap
 }
 
@@ -294,6 +245,7 @@ export interface LeagueDetails {
 /**
  * Obtém os detalhes das ligas especificadas (logo, nome e país).
  * Consulta a base de dados e, em caso de miss do logo, tenta pesquisar no TheSportsDB.
+ * Se o nome for ausente ou genérico (ex: "Liga #55"), consulta a API do Bzzoiro.
  */
 export async function getLeaguesDetails(leagues: { id: number; name: string }[]): Promise<Record<number, LeagueDetails>> {
   if (leagues.length === 0) return {}
@@ -329,14 +281,14 @@ export async function getLeaguesDetails(leagues: { id: number; name: string }[])
     })
   }
   
-  const recordsToUpsert: { id: number; name: string; logo_url: string; updated_at: string }[] = []
+  const recordsToUpsert: { id: number; name: string; logo_url: string; country: string | null; updated_at: string }[] = []
   
   // Processar cada liga
   const apiFetchPromises = uniqueLeagues.map(async (league) => {
     const dbLeague = dbLeagueMap.get(league.id)
     
-    // Se a liga já existe na BD e já tem um logo definido (ou marcador 'no_logo')
-    if (dbLeague && dbLeague.logo_url !== null) {
+    // Se a liga já existe na BD, tem um logo definido (ou marcador 'no_logo') E o nome não é genérico ("Liga #X")
+    if (dbLeague && dbLeague.logo_url !== null && dbLeague.name && !dbLeague.name.startsWith('Liga #')) {
       detailsMap[league.id] = {
         logoUrl: (dbLeague.logo_url && dbLeague.logo_url !== 'no_logo') ? dbLeague.logo_url : undefined,
         name: dbLeague.name,
@@ -345,44 +297,59 @@ export async function getLeaguesDetails(leagues: { id: number; name: string }[])
       return
     }
     
-    // Cache miss para o logo
-    const sportsDbId = BZZOIRO_TO_SPORTSDB_LEAGUE[league.id]
-    let logoUrl: string | null = null
+    // Cache miss ou nome genérico no DB
+    let name = dbLeague?.name || league.name
+    let country = dbLeague?.country || undefined
     
-    if (sportsDbId) {
-      console.log(`[LogoService] Cache miss para liga ${league.name} (ID: ${league.id}). A pesquisar no TheSportsDB...`)
-      logoUrl = await fetchLeagueLogoFromAPI(sportsDbId)
+    // Se não temos o nome correto (ou seja, é genérico "Liga #X" ou ausente)
+    if (name.startsWith('Liga #')) {
+      console.log(`[LogoService] A liga ID ${league.id} tem nome genérico ("${name}"). A consultar API Bzzoiro...`)
+      const bzzoiroLeague = await fetchLeagueFromBzzoiro(league.id)
+      if (bzzoiroLeague) {
+        name = bzzoiroLeague.name
+        country = bzzoiroLeague.country || undefined
+      }
+    }
+    
+    // Agora tratamos do logo (se ainda não tiver logo, ou se for cache miss)
+    let logoUrl: string | null = dbLeague?.logo_url || null
+    if (logoUrl === null) {
+      const sportsDbId = BZZOIRO_TO_SPORTSDB_LEAGUE[league.id]
+      if (sportsDbId) {
+        console.log(`[LogoService] Cache miss para logo da liga ${name} (ID: ${league.id}). A pesquisar no TheSportsDB...`)
+        logoUrl = await fetchLeagueLogoFromAPI(sportsDbId)
+      }
     }
     
     const finalLogoUrl = logoUrl || 'no_logo'
-    const finalName = (dbLeague && dbLeague.name) ? dbLeague.name : league.name
     
     recordsToUpsert.push({
       id: league.id,
-      name: finalName,
+      name: name,
       logo_url: finalLogoUrl,
+      country: country || null,
       updated_at: new Date().toISOString()
     })
     
     detailsMap[league.id] = {
-      logoUrl: logoUrl || undefined,
-      name: finalName,
-      country: dbLeague?.country || undefined
+      logoUrl: (logoUrl && logoUrl !== 'no_logo') ? logoUrl : undefined,
+      name: name,
+      country: country
     }
   })
   
   // Esperar por todas as consultas concorrentes
   await Promise.all(apiFetchPromises)
   
-  // Efetuar upsert dos novos logos em lote
+  // Efetuar upsert em lote com os nomes reais corrigidos e os logos
   if (recordsToUpsert.length > 0) {
-    console.log(`[LogoService] A guardar ${recordsToUpsert.length} logos de ligas na base de dados...`)
+    console.log(`[LogoService] A atualizar/guardar ${recordsToUpsert.length} ligas na base de dados...`)
     const { error: upsertError } = await supabase
       .from('leagues')
       .upsert(recordsToUpsert, { onConflict: 'id' })
       
     if (upsertError) {
-      console.error('[LogoService] Erro ao atualizar/inserir logos de ligas na base de dados:', upsertError)
+      console.error('[LogoService] Erro ao atualizar/inserir ligas na base de dados:', upsertError)
     }
   }
   
