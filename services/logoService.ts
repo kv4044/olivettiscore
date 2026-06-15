@@ -251,10 +251,11 @@ export async function getLeaguesLogos(leagues: { id: number; name: string }[]): 
     }
     
     const finalLogoUrl = logoUrl || 'no_logo'
+    const finalName = (dbLeague && dbLeague.name) ? dbLeague.name : league.name
     
     recordsToUpsert.push({
       id: league.id,
-      name: league.name,
+      name: finalName,
       logo_url: finalLogoUrl,
       updated_at: new Date().toISOString()
     })
@@ -283,3 +284,108 @@ export async function getLeaguesLogos(leagues: { id: number; name: string }[]): 
   
   return logoMap
 }
+
+export interface LeagueDetails {
+  logoUrl?: string
+  name?: string
+  country?: string
+}
+
+/**
+ * Obtém os detalhes das ligas especificadas (logo, nome e país).
+ * Consulta a base de dados e, em caso de miss do logo, tenta pesquisar no TheSportsDB.
+ */
+export async function getLeaguesDetails(leagues: { id: number; name: string }[]): Promise<Record<number, LeagueDetails>> {
+  if (leagues.length === 0) return {}
+
+  // Deduplicar ligas recebidas pelo ID para otimizar queries
+  const uniqueLeaguesMap = new Map<number, string>()
+  leagues.forEach(l => {
+    if (l.id && l.name) {
+      uniqueLeaguesMap.set(l.id, l.name)
+    }
+  })
+  const uniqueLeagues = Array.from(uniqueLeaguesMap.entries()).map(([id, name]) => ({ id, name }))
+
+  const supabase = createAdminClient()
+  const leagueIds = uniqueLeagues.map(l => l.id)
+  
+  // Consultar base de dados para ver as ligas já existentes
+  const { data: dbLeagues, error } = await supabase
+    .from('leagues')
+    .select('id, name, country, logo_url')
+    .in('id', leagueIds)
+    
+  if (error) {
+    console.error('[LogoService] Erro ao obter ligas da base de dados:', error)
+  }
+  
+  const detailsMap: Record<number, LeagueDetails> = {}
+  const dbLeagueMap = new Map<number, { logo_url: string | null; name: string; country: string | null }>()
+  
+  if (dbLeagues) {
+    dbLeagues.forEach(l => {
+      dbLeagueMap.set(Number(l.id), { logo_url: l.logo_url, name: l.name, country: l.country })
+    })
+  }
+  
+  const recordsToUpsert: { id: number; name: string; logo_url: string; updated_at: string }[] = []
+  
+  // Processar cada liga
+  const apiFetchPromises = uniqueLeagues.map(async (league) => {
+    const dbLeague = dbLeagueMap.get(league.id)
+    
+    // Se a liga já existe na BD e já tem um logo definido (ou marcador 'no_logo')
+    if (dbLeague && dbLeague.logo_url !== null) {
+      detailsMap[league.id] = {
+        logoUrl: (dbLeague.logo_url && dbLeague.logo_url !== 'no_logo') ? dbLeague.logo_url : undefined,
+        name: dbLeague.name,
+        country: dbLeague.country || undefined
+      }
+      return
+    }
+    
+    // Cache miss para o logo
+    const sportsDbId = BZZOIRO_TO_SPORTSDB_LEAGUE[league.id]
+    let logoUrl: string | null = null
+    
+    if (sportsDbId) {
+      console.log(`[LogoService] Cache miss para liga ${league.name} (ID: ${league.id}). A pesquisar no TheSportsDB...`)
+      logoUrl = await fetchLeagueLogoFromAPI(sportsDbId)
+    }
+    
+    const finalLogoUrl = logoUrl || 'no_logo'
+    const finalName = (dbLeague && dbLeague.name) ? dbLeague.name : league.name
+    
+    recordsToUpsert.push({
+      id: league.id,
+      name: finalName,
+      logo_url: finalLogoUrl,
+      updated_at: new Date().toISOString()
+    })
+    
+    detailsMap[league.id] = {
+      logoUrl: logoUrl || undefined,
+      name: finalName,
+      country: dbLeague?.country || undefined
+    }
+  })
+  
+  // Esperar por todas as consultas concorrentes
+  await Promise.all(apiFetchPromises)
+  
+  // Efetuar upsert dos novos logos em lote
+  if (recordsToUpsert.length > 0) {
+    console.log(`[LogoService] A guardar ${recordsToUpsert.length} logos de ligas na base de dados...`)
+    const { error: upsertError } = await supabase
+      .from('leagues')
+      .upsert(recordsToUpsert, { onConflict: 'id' })
+      
+    if (upsertError) {
+      console.error('[LogoService] Erro ao atualizar/inserir logos de ligas na base de dados:', upsertError)
+    }
+  }
+  
+  return detailsMap
+}
+

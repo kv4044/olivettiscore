@@ -1,4 +1,4 @@
-import { getTeamsLogos, getLeaguesLogos } from './logoService'
+import { getTeamsLogos, getLeaguesLogos, getLeaguesDetails } from './logoService'
 
 // ─── Interfaces do Frontend (o que o UI espera) ────────────────────────────
 
@@ -111,6 +111,7 @@ const LEAGUE_NAMES: Record<number, { name: string; country: string }> = {
   22: { name: 'Parva Liga',                      country: 'Bulgária'      },
   23: { name: 'Liga I',                          country: 'Roménia'       },
   26: { name: 'Allsvenskan',                     country: 'Suécia'        },
+  27: { name: 'Mundial',                         country: 'Internacional' },
   34: { name: 'Série C',                         country: 'Brasil'        },
   54: { name: 'Eliteserien',                     country: 'Noruega'       },
 };
@@ -255,9 +256,9 @@ async function enrichEventsWithLogos(events: BzzoiroEvent[]): Promise<BzzoiroEve
   });
 
   try {
-    const [logoMap, leagueLogoMap] = await Promise.all([
+    const [logoMap, leagueDetailsMap] = await Promise.all([
       getTeamsLogos(teamsToResolve),
-      getLeaguesLogos(leaguesToResolve)
+      getLeaguesDetails(leaguesToResolve)
     ]);
     
     events.forEach((event) => {
@@ -267,8 +268,20 @@ async function enrichEventsWithLogos(events: BzzoiroEvent[]): Promise<BzzoiroEve
       if (event.away_team && logoMap[event.away_team.id]) {
         event.away_team.logo = logoMap[event.away_team.id];
       }
-      if (event.league && leagueLogoMap[event.league.id]) {
-        event.league.logo = leagueLogoMap[event.league.id];
+      if (event.league) {
+        const details = leagueDetailsMap[event.league.id];
+        if (details) {
+          if (details.logoUrl) {
+            event.league.logo = details.logoUrl;
+          }
+          // Se o nome atual for genérico (Liga #27), usa o nome correto da DB (ex: World Cup 2026)
+          if (details.name && (event.league.name.startsWith('Liga #') || !event.league.name)) {
+            event.league.name = details.name;
+          }
+          if (details.country && !event.league.country) {
+            event.league.country = details.country;
+          }
+        }
       }
     });
   } catch (error) {
