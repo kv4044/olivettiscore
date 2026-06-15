@@ -167,13 +167,12 @@ export default function BetWidget({
                 type="button"
                 onClick={() => setOutcome('1')}
                 disabled={isMatchStarted || isPending}
-                className={getButtonClass('1') + 'flex flex-col items-center justify-center gap-1'}
+                className={getButtonClass('1') + 'flex flex-col items-center justify-center gap-1.5'}
               >
-                <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-normal">Casa</span>
-                <span className="truncate max-w-[80px] font-black">{homeTeamName.split(' ')[0]}</span>
+                <span className="truncate max-w-[95px] font-black text-xs text-zinc-100">{homeTeamName.split(' ')[0]}        </span>
                 {odd1 && (
-                  <span className={`text-[10px] font-mono ${getOddColorClass('1', odd1, [odd1, oddX, odd2])}`}>
-                    @{odd1.toFixed(2)}
+                  <span className={`text-[11px] font-mono ${getOddColorClass('1', odd1, [odd1, oddX, odd2])}`}>
+                    {odd1.toFixed(2)}
                   </span>
                 )}
               </button>
@@ -182,13 +181,12 @@ export default function BetWidget({
                 type="button"
                 onClick={() => setOutcome('X')}
                 disabled={isMatchStarted || isPending}
-                className={getButtonClass('X') + 'flex flex-col items-center justify-center gap-1'}
+                className={getButtonClass('X') + 'flex flex-col items-center justify-center gap-1.5'}
               >
-                <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-normal">Empate</span>
-                <span className="font-black">X</span>
+                <span className="font-black text-xs text-zinc-100">Empate       </span>
                 {oddX && (
-                  <span className={`text-[10px] font-mono ${getOddColorClass('X', oddX, [odd1, oddX, odd2])}`}>
-                    @{oddX.toFixed(2)}
+                  <span className={`text-[11px] font-mono ${getOddColorClass('X', oddX, [odd1, oddX, odd2])}`}>
+                    {oddX.toFixed(2)}
                   </span>
                 )}
               </button>
@@ -197,13 +195,12 @@ export default function BetWidget({
                 type="button"
                 onClick={() => setOutcome('2')}
                 disabled={isMatchStarted || isPending}
-                className={getButtonClass('2') + 'flex flex-col items-center justify-center gap-1'}
+                className={getButtonClass('2') + 'flex flex-col items-center justify-center gap-1.5'}
               >
-                <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-normal">Fora</span>
-                <span className="truncate max-w-[80px] font-black">{awayTeamName.split(' ')[0]}</span>
+                <span className="truncate max-w-[95px] font-black text-xs text-zinc-100">{awayTeamName.split(' ')[0]} </span>
                 {odd2 && (
-                  <span className={`text-[10px] font-mono ${getOddColorClass('2', odd2, [odd1, oddX, odd2])}`}>
-                    @{odd2.toFixed(2)}
+                  <span className={`text-[11px] font-mono ${getOddColorClass('2', odd2, [odd1, oddX, odd2])}`}>
+                    {odd2.toFixed(2)}
                   </span>
                 )}
               </button>
@@ -220,10 +217,10 @@ export default function BetWidget({
                     type="button"
                     onClick={() => setOutcome('OVER_25')}
                     disabled={isMatchStarted || isPending}
-                    className={getButtonClass('OVER_25') + 'flex items-center justify-between px-4'}
+                    className={getButtonClass('OVER_25') + 'flex flex-col items-center justify-center gap-1.5'}
                   >
-                    <span className="text-[10px] uppercase tracking-wider font-black">Mais 2.5</span>
-                    <span className={`text-xs font-mono font-bold ${getOddColorClass('OVER_25', oddOver, [oddOver, oddUnder])}`}>
+                    <span className="text-[10px] uppercase tracking-wider font-black text-zinc-100">Mais 2.5 </span>
+                    <span className={`text-[11px] font-mono ${getOddColorClass('OVER_25', oddOver, [oddOver, oddUnder])}`}>
                       {oddOver.toFixed(2)}
                     </span>
                   </button>
@@ -233,10 +230,10 @@ export default function BetWidget({
                     type="button"
                     onClick={() => setOutcome('UNDER_25')}
                     disabled={isMatchStarted || isPending}
-                    className={getButtonClass('UNDER_25') + 'flex items-center justify-between px-4'}
+                    className={getButtonClass('UNDER_25') + 'flex flex-col items-center justify-center gap-1.5'}
                   >
-                    <span className="text-[10px] uppercase tracking-wider font-black">Menos 2.5</span>
-                    <span className={`text-xs font-mono font-bold ${getOddColorClass('UNDER_25', oddUnder, [oddOver, oddUnder])}`}>
+                    <span className="text-[10px] uppercase tracking-wider font-black text-zinc-100">Menos 2.5 </span>
+                    <span className={`text-[11px] font-mono ${getOddColorClass('UNDER_25', oddUnder, [oddOver, oddUnder])}`}>
                       {oddUnder.toFixed(2)}
                     </span>
                   </button>
@@ -255,10 +252,10 @@ export default function BetWidget({
                     type="button"
                     onClick={() => setOutcome('BTTS_YES')}
                     disabled={isMatchStarted || isPending}
-                    className={getButtonClass('BTTS_YES') + 'flex items-center justify-between px-4'}
+                    className={getButtonClass('BTTS_YES') + 'flex flex-col items-center justify-center gap-1.5'}
                   >
-                    <span className="text-[10px] uppercase tracking-wider font-black">Sim</span>
-                    <span className={`text-xs font-mono font-bold ${getOddColorClass('BTTS_YES', oddBttsYes, [oddBttsYes, oddBttsNo])}`}>
+                    <span className="text-[10px] uppercase tracking-wider font-black text-zinc-100">Sim </span>
+                    <span className={`text-[11px] font-mono ${getOddColorClass('BTTS_YES', oddBttsYes, [oddBttsYes, oddBttsNo])}`}>
                       {oddBttsYes.toFixed(2)}
                     </span>
                   </button>
@@ -268,10 +265,10 @@ export default function BetWidget({
                     type="button"
                     onClick={() => setOutcome('BTTS_NO')}
                     disabled={isMatchStarted || isPending}
-                    className={getButtonClass('BTTS_NO') + 'flex items-center justify-between px-4'}
+                    className={getButtonClass('BTTS_NO') + 'flex flex-col items-center justify-center gap-1.5'}
                   >
-                    <span className="text-[10px] uppercase tracking-wider font-black">Não</span>
-                    <span className={`text-xs font-mono font-bold ${getOddColorClass('BTTS_NO', oddBttsNo, [oddBttsYes, oddBttsNo])}`}>
+                    <span className="text-[10px] uppercase tracking-wider font-black text-zinc-100">Não </span>
+                    <span className={`text-[11px] font-mono ${getOddColorClass('BTTS_NO', oddBttsNo, [oddBttsYes, oddBttsNo])}`}>
                       {oddBttsNo.toFixed(2)}
                     </span>
                   </button>
