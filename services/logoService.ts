@@ -234,6 +234,7 @@ const BZZOIRO_TO_SPORTSDB_LEAGUE: Record<number, string> = {
   18: '4346',  // MLS (EUA)
   20: '4350',  // Liga MX (México)
   26: '4338',  // Allsvenskan (Suécia)
+  27: '4429',  // Mundial (Copa do Mundo / World Cup)
   34: '4791',  // Série C (Brasil)
   54: '4339',  // Eliteserien (Noruega)
 }

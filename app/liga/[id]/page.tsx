@@ -48,10 +48,42 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
     console.error('Erro ao obter classificações da liga:', err)
   }
 
-  // 3. Obter jogos recentes/futuros da liga da API Bzzoiro
+  // 3. Obter jogos recentes e futuros da liga da API Bzzoiro usando duas queries separadas para contornar o limite de 50 eventos da API
   let events: any[] = []
   try {
-    events = await bzzoiroService.getEvents({ league_id: String(leagueId) })
+    const today = new Date()
+    const fourteenDaysAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const fourteenDaysAhead = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const todayStr = today.toISOString().split('T')[0]
+
+    const [pastEvents, futureEvents] = await Promise.all([
+      bzzoiroService.getEvents({ 
+        league_id: String(leagueId),
+        date_from: fourteenDaysAgo,
+        date_to: todayStr
+      }).catch(() => []),
+      bzzoiroService.getEvents({ 
+        league_id: String(leagueId),
+        date_from: todayStr,
+        date_to: fourteenDaysAhead
+      }).catch(() => [])
+    ])
+    
+    // Unir os resultados sem duplicados (no caso de jogos de hoje estarem em ambos)
+    const seenIds = new Set<number>()
+    const combined: any[] = []
+    
+    const addEvent = (e: any) => {
+      if (!seenIds.has(e.id)) {
+        seenIds.add(e.id)
+        combined.push(e)
+      }
+    }
+    
+    pastEvents.forEach(addEvent)
+    futureEvents.forEach(addEvent)
+    
+    events = combined
   } catch (err) {
     console.error('Erro ao obter jogos da liga:', err)
   }
@@ -147,47 +179,107 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
                 <span>Tabela Classificativa</span>
               </h3>
 
-              {leagueStandings && leagueStandings.standings ? (
-                <div className="border border-zinc-850 rounded-2xl overflow-hidden max-h-[600px] overflow-y-auto pr-0.5">
-                  <table className="w-full text-left text-[11px] border-collapse">
-                    <thead>
-                      <tr className="bg-zinc-950 text-zinc-500 font-bold uppercase tracking-wider text-[9px] border-b border-zinc-850">
-                        <th className="py-2.5 px-3 text-center w-8">#</th>
-                        <th className="py-2.5 px-2">Clube</th>
-                        <th className="py-2.5 px-2 text-center">J</th>
-                        <th className="py-2.5 px-2 text-center">Forma</th>
-                        <th className="py-2.5 px-3 text-right">Pts</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-900/50">
-                      {leagueStandings.standings.map((row: any) => (
-                        <tr 
-                          key={row.team_id}
-                          className="transition-colors text-zinc-400 hover:bg-zinc-900/20"
-                        >
-                          <td className="py-2.5 px-3 text-center font-bold">
-                            {row.position}
-                          </td>
-                          <td className="py-2.5 px-2 truncate max-w-[150px] font-bold">
-                            <Link href={`/equipa/${row.team_id}`} className="hover:text-indigo-400 hover:underline">
-                              {row.team_name}
-                            </Link>
-                          </td>
-                          <td className="py-2.5 px-2 text-center font-medium">
-                            {row.played}
-                          </td>
-                          <td className="py-2.5 px-2 text-center">
-                            <span className="font-mono text-[9px] tracking-wide text-zinc-500">
-                              {row.form || '-'}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-black text-zinc-200">
-                            {row.pts}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {leagueStandings && (leagueStandings.standings || leagueStandings.groups) ? (
+                <div className="space-y-6 max-h-[600px] overflow-y-auto pr-0.5 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                  {leagueStandings.grouped && leagueStandings.groups ? (
+                    Object.entries(leagueStandings.groups)
+                      .sort((a, b) => a[0].localeCompare(b[0]))
+                      .map(([groupName, rows]: [string, any]) => (
+                        <div key={groupName} className="space-y-2">
+                          <div className="bg-indigo-500/10 border border-indigo-950/30 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider text-indigo-400 flex items-center justify-between">
+                            <span>{groupName}</span>
+                            <span className="text-[9px] text-zinc-500 font-normal normal-case">Grupo</span>
+                          </div>
+                          <div className="border border-zinc-850 rounded-2xl overflow-hidden bg-zinc-950/20">
+                            <table className="w-full text-left text-[11px] border-collapse">
+                              <thead>
+                                <tr className="bg-zinc-950 text-zinc-500 font-bold uppercase tracking-wider text-[9px] border-b border-zinc-850">
+                                  <th className="py-2 px-3 text-center w-8">#</th>
+                                  <th className="py-2 px-2">Equipa</th>
+                                  <th className="py-2 px-2 text-center">J</th>
+                                  <th className="py-2 px-2 text-center">Forma</th>
+                                  <th className="py-2 px-3 text-right">Pts</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-zinc-900/50">
+                                {rows.map((row: any) => (
+                                  <tr 
+                                    key={row.team_id}
+                                    className="transition-colors text-zinc-400 hover:bg-zinc-900/20"
+                                  >
+                                    <td className="py-2 px-3 text-center font-bold">
+                                      {row.position}
+                                    </td>
+                                    <td className="py-2 px-2 truncate max-w-[150px] font-bold">
+                                      <Link href={`/equipa/${row.team_id}`} className="hover:text-indigo-400 hover:underline">
+                                        {row.team_name}
+                                      </Link>
+                                    </td>
+                                    <td className="py-2 px-2 text-center font-medium">
+                                      {row.played}
+                                    </td>
+                                    <td className="py-2 px-2 text-center">
+                                      <span className="font-mono text-[9px] tracking-wide text-zinc-500">
+                                        {row.form || '-'}
+                                      </span>
+                                    </td>
+                                    <td className="py-2 px-3 text-right font-black text-zinc-200">
+                                      {row.pts}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      ))
+                  ) : leagueStandings.standings ? (
+                    <div className="border border-zinc-850 rounded-2xl overflow-hidden bg-zinc-950/20">
+                      <table className="w-full text-left text-[11px] border-collapse">
+                        <thead>
+                          <tr className="bg-zinc-950 text-zinc-500 font-bold uppercase tracking-wider text-[9px] border-b border-zinc-850">
+                            <th className="py-2.5 px-3 text-center w-8">#</th>
+                            <th className="py-2.5 px-2">Clube</th>
+                            <th className="py-2.5 px-2 text-center">J</th>
+                            <th className="py-2.5 px-2 text-center">Forma</th>
+                            <th className="py-2.5 px-3 text-right">Pts</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-900/50">
+                          {leagueStandings.standings.map((row: any) => (
+                            <tr 
+                              key={row.team_id}
+                              className="transition-colors text-zinc-400 hover:bg-zinc-900/20"
+                            >
+                              <td className="py-2.5 px-3 text-center font-bold">
+                                {row.position}
+                              </td>
+                              <td className="py-2.5 px-2 truncate max-w-[150px] font-bold">
+                                <Link href={`/equipa/${row.team_id}`} className="hover:text-indigo-400 hover:underline">
+                                  {row.team_name}
+                                </Link>
+                              </td>
+                              <td className="py-2.5 px-2 text-center font-medium">
+                                {row.played}
+                              </td>
+                              <td className="py-2.5 px-2 text-center">
+                                <span className="font-mono text-[9px] tracking-wide text-zinc-500">
+                                  {row.form || '-'}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-black text-zinc-200">
+                                {row.pts}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center text-zinc-550 text-xs">
+                      Sem classificação disponível no momento.
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="p-4 text-center text-zinc-500 text-xs">
