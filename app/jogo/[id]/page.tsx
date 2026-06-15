@@ -44,7 +44,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
       .select('points')
       .eq('id', user.id)
       .maybeSingle()
-    userPoints = profile?.points || 0
+    userPoints = (profile?.points || 0) / 100
   }
 
   // 2. Obter Dados Relacionados ao Jogo (API Bzzoiro e Supabase)

@@ -151,7 +151,7 @@ export default function LeaderboardSection({
                   {/* Points */}
                   <div className="flex items-center gap-1.5">
                     <span className={`text-xs font-black ${isOwnProfile ? 'text-indigo-400' : 'text-zinc-200'}`}>
-                      {profileRow.points}
+                      {profileRow.points.toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                     </span>
                     <span className="text-[9px] font-bold text-zinc-600 uppercase">PTS</span>
                   </div>

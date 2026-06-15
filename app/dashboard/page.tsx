@@ -49,7 +49,7 @@ export default async function DashboardPage() {
     .eq('id', user.id)
     .maybeSingle()
 
-  const userPoints = profile?.points || 0
+  const userPoints = (profile?.points || 0) / 100
   const firstName = profile?.first_name || user.user_metadata?.first_name || ''
   const lastName = profile?.last_name || user.user_metadata?.last_name || ''
   const fullName = firstName && lastName ? `${firstName} ${lastName}` : ''
@@ -72,7 +72,10 @@ export default async function DashboardPage() {
     .order('points', { ascending: false })
     .limit(10)
 
-  const leaderboard = leaderboardData || []
+  const leaderboard = (leaderboardData || []).map(row => ({
+    ...row,
+    points: row.points / 100
+  }))
 
   // 4. Obter Histórico de Prognósticos Recentes (últimos 5)
   const { data: rawPredictions } = await supabase
@@ -84,18 +87,38 @@ export default async function DashboardPage() {
 
   const predictions = rawPredictions || []
 
+  // Helper para mapear prognósticos
+  const getPredictionText = (predictedOutcome: string, homeTeam: string, awayTeam: string) => {
+    let outcome = predictedOutcome
+    let betAmount = 0
+    if (predictedOutcome.includes(':bet=')) {
+      const parts = predictedOutcome.split(':')
+      outcome = parts[0]
+      const betPart = parts.find(p => p.startsWith('bet='))
+      if (betPart) betAmount = Number(betPart.split('=')[1]) || 0
+    }
+
+    let text = ''
+    if (outcome === '1') text = `Vitória de ${homeTeam}`
+    else if (outcome === '2') text = `Vitória de ${awayTeam}`
+    else if (outcome === 'X') text = 'Empate (X)'
+    else if (outcome === 'OVER_25') text = 'Golos (Mais 2.5)'
+    else if (outcome === 'UNDER_25') text = 'Golos (Menos 2.5)'
+    else if (outcome === 'BTTS_YES') text = 'Ambas Equipas Marcam (Sim)'
+    else if (outcome === 'BTTS_NO') text = 'Ambas Equipas Marcam (Não)'
+
+    if (betAmount > 0) {
+      text += ` [Aposta: ${betAmount.toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} PTS]`
+    }
+    return text
+  }
+
   // 5. Cruzar previsões com os dados reais dos jogos da API Bzzoiro
   const resolvedPredictions = await Promise.all(
     predictions.map(async (pred) => {
       try {
         const match = await bzzoiroService.getEventDetails(Number(pred.match_id))
         
-        // Mapear prognóstico
-        let predOutcomeText = ''
-        if (pred.predicted_outcome === '1') predOutcomeText = `Vitória de ${match.home_team.name}`
-        else if (pred.predicted_outcome === '2') predOutcomeText = `Vitória de ${match.away_team.name}`
-        else predOutcomeText = 'Empate (X)'
-
         return {
           id: pred.id,
           matchId: pred.match_id,
@@ -107,7 +130,7 @@ export default async function DashboardPage() {
           scoreHome: match.score.home,
           scoreAway: match.score.away,
           predictedOutcome: pred.predicted_outcome,
-          predictedOutcomeText: predOutcomeText,
+          predictedOutcomeText: getPredictionText(pred.predicted_outcome, match.home_team.name, match.away_team.name),
           isCalculated: pred.is_calculated,
           pointsAwarded: pred.points_awarded,
           date: match.date
@@ -125,7 +148,7 @@ export default async function DashboardPage() {
           scoreHome: null,
           scoreAway: null,
           predictedOutcome: pred.predicted_outcome,
-          predictedOutcomeText: pred.predicted_outcome === '1' ? 'Casa' : pred.predicted_outcome === '2' ? 'Fora' : 'Empate',
+          predictedOutcomeText: getPredictionText(pred.predicted_outcome, `Jogo #${pred.match_id}`, ''),
           isCalculated: pred.is_calculated,
           pointsAwarded: pred.points_awarded,
           date: pred.created_at
@@ -195,7 +218,7 @@ export default async function DashboardPage() {
                 <Trophy className="w-5 h-5 text-indigo-400" />
               </div>
               <p className="text-4xl md:text-5xl font-black text-white bg-clip-text text-transparent bg-gradient-to-tr from-white to-indigo-300">
-                {userPoints}
+                {userPoints.toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
               </p>
               <p className="text-xs text-indigo-300 font-semibold mt-1">Pontos Olivetti Score</p>
             </div>
@@ -330,7 +353,7 @@ export default async function DashboardPage() {
                         pred.pointsAwarded > 0 ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xxs font-black">
                             <CheckCircle className="w-3 h-3 text-emerald-400" />
-                            <span>+5 Pontos</span>
+                            <span>+{(pred.pointsAwarded / 100).toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} Pontos</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-zinc-950 border border-zinc-900 text-zinc-500 text-xxs font-bold">

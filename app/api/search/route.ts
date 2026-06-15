@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
           id: profile.id,
           email: maskEmail(profile.email),
           name: profile.username || fullName || maskEmail(profile.email),
-          points: profile.points,
+          points: profile.points / 100,
           rank: (count || 0) + 1,
         }
       })

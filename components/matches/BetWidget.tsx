@@ -58,7 +58,7 @@ export default function BetWidget({
 
   const selectedOdd = getSelectedOdd()
   const parsedBetAmount = Number(betAmount) || 0
-  const potentialWinnings = selectedOdd ? Math.round(parsedBetAmount * selectedOdd) : 0
+  const potentialWinnings = selectedOdd ? Math.round(parsedBetAmount * selectedOdd * 100) / 100 : 0
 
   const handleBetSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -90,6 +90,30 @@ export default function BetWidget({
     })
   }
 
+  // Helper para obter a cor da odd com base nos valores (Verde = mais baixa, Vermelho = mais alta, Amarelo = média)
+  const getOddColorClass = (btnType: '1' | 'X' | '2' | 'OVER_25' | 'UNDER_25' | 'BTTS_YES' | 'BTTS_NO', currentOdd: number | null, allOdds: (number | null)[]) => {
+    if (outcome === btnType) return 'text-white font-extrabold shadow-sm'
+    if (!currentOdd) return 'text-zinc-500'
+    const validOdds = allOdds.filter((o): o is number => o !== null)
+    if (validOdds.length <= 1) return 'text-zinc-350'
+    
+    // Obter odds únicas e ordenadas
+    const sorted = [...new Set(validOdds)].sort((a, b) => a - b)
+    
+    if (sorted.length === 2) {
+      if (currentOdd === sorted[0]) return 'text-emerald-400 font-black drop-shadow-[0_1px_4px_rgba(16,185,129,0.1)]' // mais baixa -> favorita (verde)
+      return 'text-rose-500 font-black drop-shadow-[0_1px_4px_rgba(244,63,94,0.1)]' // mais alta -> azarão (vermelho)
+    }
+    
+    if (sorted.length >= 3) {
+      if (currentOdd === sorted[0]) return 'text-emerald-400 font-black drop-shadow-[0_1px_4px_rgba(16,185,129,0.1)]' // mais baixa (verde)
+      if (currentOdd === sorted[sorted.length - 1]) return 'text-rose-500 font-black drop-shadow-[0_1px_4px_rgba(244,63,94,0.1)]' // mais alta (vermelho)
+      return 'text-amber-400 font-black drop-shadow-[0_1px_4px_rgba(245,158,11,0.1)]' // intermédia (amarelo)
+    }
+    
+    return 'text-zinc-350'
+  }
+
   // Helper de estilos de botões
   const getButtonClass = (btnType: '1' | 'X' | '2' | 'OVER_25' | 'UNDER_25' | 'BTTS_YES' | 'BTTS_NO') => {
     const isSelected = outcome === btnType
@@ -119,12 +143,12 @@ export default function BetWidget({
         {isCalculated ? (
           <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
             <Award className="w-3.5 h-3.5" />
-            <span>+{pointsAwarded} Pontos</span>
+            <span>+{pointsAwarded.toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} Pontos</span>
           </span>
         ) : (
           <div className="flex items-center gap-1 bg-zinc-950/80 px-3 py-1.5 rounded-xl border border-zinc-850 text-xxs font-bold text-zinc-400">
             <Coins className="w-3.5 h-3.5 text-amber-500" />
-            <span>Saldo: {userPoints} Pts</span>
+            <span>Saldo: {userPoints.toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} Pts</span>
           </div>
         )}
       </div>
@@ -134,10 +158,10 @@ export default function BetWidget({
           Nenhuma odd disponível para este jogo no momento. Não é possível apostar pontos.
         </div>
       ) : (
-        <form onSubmit={handleBetSubmit} className="space-y-5">
-          {/* Seletor de Seleção (Casa, Empate, Fora) */}
-          <div className="space-y-2">
-            <label className="text-xxs font-black text-zinc-550 uppercase tracking-widest pl-1">Resultado Final (1X2)</label>
+        <form onSubmit={handleBetSubmit} className="space-y-4">
+          {/* Box 1: Resultado Final (1X2) */}
+          <div className="p-4 rounded-2xl border border-zinc-800/80 bg-zinc-950/30 space-y-3 shadow-inner">
+            <label className="text-xxs font-black text-zinc-400 uppercase tracking-widest pl-0.5">Resultado Final (1X2)</label>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -147,7 +171,11 @@ export default function BetWidget({
               >
                 <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-normal">Casa</span>
                 <span className="truncate max-w-[80px] font-black">{homeTeamName.split(' ')[0]}</span>
-                {odd1 && <span className="text-[10px] font-mono text-zinc-400">@{odd1.toFixed(2)}</span>}
+                {odd1 && (
+                  <span className={`text-[10px] font-mono ${getOddColorClass('1', odd1, [odd1, oddX, odd2])}`}>
+                    @{odd1.toFixed(2)}
+                  </span>
+                )}
               </button>
 
               <button
@@ -158,7 +186,11 @@ export default function BetWidget({
               >
                 <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-normal">Empate</span>
                 <span className="font-black">X</span>
-                {oddX && <span className="text-[10px] font-mono text-zinc-400">@{oddX.toFixed(2)}</span>}
+                {oddX && (
+                  <span className={`text-[10px] font-mono ${getOddColorClass('X', oddX, [odd1, oddX, odd2])}`}>
+                    @{oddX.toFixed(2)}
+                  </span>
+                )}
               </button>
 
               <button
@@ -169,25 +201,29 @@ export default function BetWidget({
               >
                 <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-normal">Fora</span>
                 <span className="truncate max-w-[80px] font-black">{awayTeamName.split(' ')[0]}</span>
-                {odd2 && <span className="text-[10px] font-mono text-zinc-400">@{odd2.toFixed(2)}</span>}
+                {odd2 && (
+                  <span className={`text-[10px] font-mono ${getOddColorClass('2', odd2, [odd1, oddX, odd2])}`}>
+                    @{odd2.toFixed(2)}
+                  </span>
+                )}
               </button>
             </div>
           </div>
 
-          {/* Golos (Mais / Menos 2.5) */}
+          {/* Box 2: Golos (Mais / Menos 2.5) */}
           {(oddOver || oddUnder) && (
-            <div className="space-y-2">
-              <label className="text-xxs font-black text-zinc-550 uppercase tracking-widest pl-1">Golos (Mais / Menos 2.5)</label>
+            <div className="p-4 rounded-2xl border border-zinc-800/80 bg-zinc-950/30 space-y-3 shadow-inner">
+              <label className="text-xxs font-black text-zinc-400 uppercase tracking-widest pl-0.5">Golos (Mais / Menos 2.5)</label>
               <div className="flex gap-2">
                 {oddOver && (
                   <button
                     type="button"
                     onClick={() => setOutcome('OVER_25')}
                     disabled={isMatchStarted || isPending}
-                    className={getButtonClass('OVER_25') + 'flex items-center justify-between px-3'}
+                    className={getButtonClass('OVER_25') + 'flex items-center justify-between px-4'}
                   >
                     <span className="text-[10px] uppercase tracking-wider font-black">Mais 2.5</span>
-                    <span className={`text-xs font-mono font-bold ${outcome === 'OVER_25' ? 'text-white' : 'text-indigo-400'}`}>
+                    <span className={`text-xs font-mono font-bold ${getOddColorClass('OVER_25', oddOver, [oddOver, oddUnder])}`}>
                       {oddOver.toFixed(2)}
                     </span>
                   </button>
@@ -197,10 +233,10 @@ export default function BetWidget({
                     type="button"
                     onClick={() => setOutcome('UNDER_25')}
                     disabled={isMatchStarted || isPending}
-                    className={getButtonClass('UNDER_25') + 'flex items-center justify-between px-3'}
+                    className={getButtonClass('UNDER_25') + 'flex items-center justify-between px-4'}
                   >
                     <span className="text-[10px] uppercase tracking-wider font-black">Menos 2.5</span>
-                    <span className="text-xs font-mono font-bold text-zinc-400">
+                    <span className={`text-xs font-mono font-bold ${getOddColorClass('UNDER_25', oddUnder, [oddOver, oddUnder])}`}>
                       {oddUnder.toFixed(2)}
                     </span>
                   </button>
@@ -209,20 +245,20 @@ export default function BetWidget({
             </div>
           )}
 
-          {/* Ambas Equipas Marcam */}
+          {/* Box 3: Ambas Equipas Marcam */}
           {(oddBttsYes || oddBttsNo) && (
-            <div className="space-y-2">
-              <label className="text-xxs font-black text-zinc-550 uppercase tracking-widest pl-1">Ambas Equipas Marcam</label>
+            <div className="p-4 rounded-2xl border border-zinc-800/80 bg-zinc-950/30 space-y-3 shadow-inner">
+              <label className="text-xxs font-black text-zinc-400 uppercase tracking-widest pl-0.5">Ambas Equipas Marcam</label>
               <div className="flex gap-2">
                 {oddBttsYes && (
                   <button
                     type="button"
                     onClick={() => setOutcome('BTTS_YES')}
                     disabled={isMatchStarted || isPending}
-                    className={getButtonClass('BTTS_YES') + 'flex items-center justify-between px-3'}
+                    className={getButtonClass('BTTS_YES') + 'flex items-center justify-between px-4'}
                   >
                     <span className="text-[10px] uppercase tracking-wider font-black">Sim</span>
-                    <span className={`text-xs font-mono font-bold ${outcome === 'BTTS_YES' ? 'text-white' : 'text-emerald-400'}`}>
+                    <span className={`text-xs font-mono font-bold ${getOddColorClass('BTTS_YES', oddBttsYes, [oddBttsYes, oddBttsNo])}`}>
                       {oddBttsYes.toFixed(2)}
                     </span>
                   </button>
@@ -232,10 +268,10 @@ export default function BetWidget({
                     type="button"
                     onClick={() => setOutcome('BTTS_NO')}
                     disabled={isMatchStarted || isPending}
-                    className={getButtonClass('BTTS_NO') + 'flex items-center justify-between px-3'}
+                    className={getButtonClass('BTTS_NO') + 'flex items-center justify-between px-4'}
                   >
                     <span className="text-[10px] uppercase tracking-wider font-black">Não</span>
-                    <span className="text-xs font-mono font-bold text-zinc-400">
+                    <span className={`text-xs font-mono font-bold ${getOddColorClass('BTTS_NO', oddBttsNo, [oddBttsYes, oddBttsNo])}`}>
                       {oddBttsNo.toFixed(2)}
                     </span>
                   </button>
@@ -252,7 +288,7 @@ export default function BetWidget({
               </label>
               {initialBetAmount > 0 && (
                 <span className="text-[10px] text-zinc-500 font-semibold">
-                  Aposta atual: <span className="text-amber-500 font-bold">{initialBetAmount} PTS</span>
+                  Aposta atual: <span className="text-amber-500 font-bold">{initialBetAmount.toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} PTS</span>
                 </span>
               )}
             </div>
@@ -261,7 +297,8 @@ export default function BetWidget({
               <input
                 id="betAmount"
                 type="number"
-                min="1"
+                min="0.01"
+                step="0.01"
                 max={userPoints + initialBetAmount}
                 value={betAmount}
                 onChange={(e) => setBetAmount(e.target.value)}
@@ -278,11 +315,11 @@ export default function BetWidget({
               <div className="space-y-0.5">
                 <p className="text-zinc-500 font-semibold">Retorno Potencial se acertares:</p>
                 <p className="text-[10px] text-zinc-650 font-mono">
-                  {parsedBetAmount} PTS x odd @{selectedOdd.toFixed(2)}
+                  {parsedBetAmount.toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} PTS x odd @{selectedOdd.toFixed(2)}
                 </p>
               </div>
               <span className="text-base font-black text-amber-400">
-                {potentialWinnings} PTS
+                {potentialWinnings.toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} PTS
               </span>
             </div>
           )}
@@ -321,7 +358,7 @@ export default function BetWidget({
             <div className="border-t border-zinc-805 mt-4 pt-4 text-center">
               {pointsAwarded > 0 ? (
                 <p className="text-xs font-bold text-emerald-400">
-                  🎉 Excelente palpite! Acertaste na aposta e ganhaste {pointsAwarded} Pontos!
+                  🎉 Excelente palpite! Acertaste na aposta e ganhaste {pointsAwarded.toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} Pontos!
                 </p>
               ) : (
                 <p className="text-xs text-zinc-550">

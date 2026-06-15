@@ -42,16 +42,36 @@ export async function GET(
       .order('created_at', { ascending: false })
       .limit(5)
 
+    // Helper para mapear prognósticos
+    const getPredictionText = (predictedOutcome: string, homeTeam: string, awayTeam: string) => {
+      let outcome = predictedOutcome
+      let betAmount = 0
+      if (predictedOutcome.includes(':bet=')) {
+        const parts = predictedOutcome.split(':')
+        outcome = parts[0]
+        const betPart = parts.find(p => p.startsWith('bet='))
+        if (betPart) betAmount = Number(betPart.split('=')[1]) || 0
+      }
+
+      let text = ''
+      if (outcome === '1') text = `Vitória de ${homeTeam}`
+      else if (outcome === '2') text = `Vitória de ${awayTeam}`
+      else if (outcome === 'X') text = 'Empate (X)'
+      else if (outcome === 'OVER_25') text = 'Golos (Mais 2.5)'
+      else if (outcome === 'UNDER_25') text = 'Golos (Menos 2.5)'
+      else if (outcome === 'BTTS_YES') text = 'Ambas Equipas Marcam (Sim)'
+      else if (outcome === 'BTTS_NO') text = 'Ambas Equipas Marcam (Não)'
+
+      if (betAmount > 0) {
+        text += ` [Aposta: ${betAmount.toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} PTS]`
+      }
+      return text
+    }
+
     const resolvedPredictions = await Promise.all(
       (predictions || []).map(async (pred) => {
         try {
           const match = await bzzoiroService.getEventDetails(Number(pred.match_id))
-
-          // Mapear resultado predito
-          let predOutcomeText = ''
-          if (pred.predicted_outcome === '1') predOutcomeText = `Vitória de ${match.home_team.name}`
-          else if (pred.predicted_outcome === '2') predOutcomeText = `Vitória de ${match.away_team.name}`
-          else predOutcomeText = 'Empate (X)'
 
           return {
             id: pred.id,
@@ -64,9 +84,9 @@ export async function GET(
             scoreHome: match.score.home,
             scoreAway: match.score.away,
             predictedOutcome: pred.predicted_outcome,
-            predictedOutcomeText: predOutcomeText,
+            predictedOutcomeText: getPredictionText(pred.predicted_outcome, match.home_team.name, match.away_team.name),
             isCalculated: pred.is_calculated,
-            pointsAwarded: pred.points_awarded,
+            pointsAwarded: pred.points_awarded / 100,
             date: match.date,
           }
         } catch (err) {
@@ -81,9 +101,9 @@ export async function GET(
             scoreHome: null,
             scoreAway: null,
             predictedOutcome: pred.predicted_outcome,
-            predictedOutcomeText: pred.predicted_outcome === '1' ? 'Casa' : pred.predicted_outcome === '2' ? 'Fora' : 'Empate',
+            predictedOutcomeText: getPredictionText(pred.predicted_outcome, `Jogo #${pred.match_id}`, ''),
             isCalculated: pred.is_calculated,
-            pointsAwarded: pred.points_awarded,
+            pointsAwarded: pred.points_awarded / 100,
             date: pred.created_at,
           }
         }
@@ -98,7 +118,7 @@ export async function GET(
       profile: {
         email: maskEmail(profile.email),
         name: profile.username || fullName || maskEmail(profile.email),
-        points: profile.points,
+        points: profile.points / 100,
         rank,
         updatedAt: profile.updated_at,
       },

@@ -175,9 +175,9 @@ export const predictionsService = {
 
             let pointsToAward = 0
             if (isBet) {
-              pointsToAward = isCorrect ? Math.round(betAmount * odd) : 0
+              pointsToAward = isCorrect ? Math.round(betAmount * odd * 100) : 0
             } else {
-              pointsToAward = isCorrect && (outcome === '1' || outcome === 'X' || outcome === '2') ? 5 : 0
+              pointsToAward = isCorrect && (outcome === '1' || outcome === 'X' || outcome === '2') ? 500 : 0
             }
 
             // Iniciar transação/atualização individual
@@ -277,7 +277,7 @@ export const predictionsService = {
       throw new Error('Não foi possível verificar os seus pontos.')
     }
 
-    const currentPoints = profile.points || 0
+    const currentPoints = (profile.points || 0) / 100
     
     // Verificar se já existe uma aposta anterior para este jogo para ajustar os pontos
     const { data: existingPred } = await supabase
@@ -299,7 +299,7 @@ export const predictionsService = {
     if (currentPoints < pointsNeeded) {
       return {
         success: false,
-        message: `Pontos insuficientes. Tem ${currentPoints} pontos, mas precisa de ${betAmount} pontos no total.`,
+        message: `Pontos insuficientes. Tem ${currentPoints.toFixed(2)} pontos, mas precisa de ${betAmount.toFixed(2)} pontos no total.`,
       }
     }
 
@@ -307,7 +307,7 @@ export const predictionsService = {
     const { error: updateProfileErr } = await supabase
       .from('profiles')
       .update({
-        points: currentPoints - pointsNeeded,
+        points: Math.round((currentPoints - pointsNeeded) * 100),
         updated_at: new Date().toISOString()
       })
       .eq('id', user.id)
@@ -337,7 +337,7 @@ export const predictionsService = {
       await supabase
         .from('profiles')
         .update({
-          points: currentPoints,
+          points: Math.round(currentPoints * 100),
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id)

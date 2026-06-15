@@ -54,7 +54,7 @@ export default function MatchTabs({
   >('info')
 
   // Descodificar prognóstico/aposta anterior
-  let parsedPredictionOutcome: '1' | 'X' | '2' | null = null
+  let parsedPredictionOutcome: '1' | 'X' | '2' | 'OVER_25' | 'UNDER_25' | 'BTTS_YES' | 'BTTS_NO' | null = null
   let parsedBetAmount: number = 0
   let parsedBetOdd: number = 1.0
   let isBetPrediction = false
@@ -63,7 +63,7 @@ export default function MatchTabs({
     if (userPrediction.predicted_outcome.includes(':bet=')) {
       isBetPrediction = true
       const parts = userPrediction.predicted_outcome.split(':')
-      parsedPredictionOutcome = parts[0]
+      parsedPredictionOutcome = parts[0] as any
       const betPart = parts.find((p: string) => p.startsWith('bet='))
       if (betPart) parsedBetAmount = Number(betPart.split('=')[1]) || 0
       const oddPart = parts.find((p: string) => p.startsWith('odd='))
@@ -195,11 +195,13 @@ export default function MatchTabs({
       {/* ── Tab bar ────────────────────────────────────────────────── */}
       <div className="flex border-b border-zinc-800 bg-zinc-950/40 p-1.5 rounded-xl gap-1 overflow-x-auto">
         <TabBtn id="info" icon={<Info className="w-3.5 h-3.5" />} label="Ficha / ML" />
-        <TabBtn
-          id="prediction"
-          icon={<Award className="w-3.5 h-3.5" />}
-          label="Prognósticos"
-        />
+        {userPoints < 50 && (
+          <TabBtn
+            id="prediction"
+            icon={<Award className="w-3.5 h-3.5" />}
+            label="Prognósticos"
+          />
+        )}
         <TabBtn
           id="bet"
           icon={<TrendingUp className="w-3.5 h-3.5 text-amber-500" />}
@@ -472,12 +474,12 @@ export default function MatchTabs({
         {/* ═══════════════════════════════════════════════════════════
             ABA 2 — SIMULADOR DE PROGNÓSTICOS
            ═══════════════════════════════════════════════════════════ */}
-        {activeTab === 'prediction' && (
+        {activeTab === 'prediction' && userPoints < 50 && (
           <div className="flex flex-col items-center justify-center py-6 animate-in fade-in duration-300">
             {isUserLoggedIn ? (
               <PredictionWidget
                 matchId={matchId}
-                initialPrediction={parsedPredictionOutcome}
+                initialPrediction={(parsedPredictionOutcome === '1' || parsedPredictionOutcome === 'X' || parsedPredictionOutcome === '2') ? parsedPredictionOutcome : null}
                 isMatchStarted={isMatchStarted}
                 homeTeamName={event.home_team.name}
                 awayTeamName={event.away_team.name}
@@ -532,7 +534,7 @@ export default function MatchTabs({
                   userPrediction ? userPrediction.is_calculated : false
                 }
                 pointsAwarded={
-                  userPrediction ? userPrediction.points_awarded : 0
+                  userPrediction ? userPrediction.points_awarded / 100 : 0
                 }
               />
             ) : (
