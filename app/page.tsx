@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
 import { bzzoiroService, BzzoiroEvent, BzzoiroLeague } from '@/services/bzzoiro'
 import { favoritesService, UserFavorites } from '@/services/favorites'
+import { getLeaguesLogos } from '@/services/logoService'
 import StarButton from '@/components/favorites/StarButton'
 import SearchHeader from '@/components/SearchHeader'
 import LocalTime from '@/components/LocalTime'
@@ -56,6 +57,11 @@ export default async function Home({ searchParams }: PageProps) {
   // 1. Autenticação e Pontos do Utilizador
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  // Obter logótipos das ligas populares para a barra lateral
+  const popularLeaguesWithLogos = await getLeaguesLogos(
+    POPULAR_LEAGUES.map(l => ({ id: l.id, name: l.name }))
+  )
 
   let userPoints = 0
   let favorites: UserFavorites = { leagues: [], teams: [], matches: [] }
@@ -330,12 +336,10 @@ export default async function Home({ searchParams }: PageProps) {
                       className="flex items-center justify-between text-xs px-2.5 py-2 rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/50"
                     >
                       <div className="flex items-center gap-2">
-                        {getFlagUrl(league.country) ? (
-                          <img 
-                            src={getFlagUrl(league.country)!} 
-                            alt="" 
-                            className="w-4 h-2.5 object-cover rounded-sm"
-                          />
+                        {popularLeaguesWithLogos[league.id] ? (
+                          <img src={popularLeaguesWithLogos[league.id]} alt="" className="w-4 h-4 object-contain shrink-0" />
+                        ) : getFlagUrl(league.country) ? (
+                          <img src={getFlagUrl(league.country)!} alt="" className="w-4 h-2.5 object-cover rounded-sm shrink-0" />
                         ) : (
                           <span className="font-mono text-zinc-650 text-xxs font-bold">L#{league.id}</span>
                         )}
@@ -373,15 +377,15 @@ export default async function Home({ searchParams }: PageProps) {
                 <li key={league.id}>
                   <div className="flex items-center justify-between rounded-lg transition-all hover:bg-zinc-900/50">
                     <Link
-                      href={`/liga/${league.id}`}
-                      className="flex-1 flex items-center gap-2 text-xs px-2.5 py-2 transition-all text-zinc-400 hover:text-zinc-200"
+                      href={`/?league=${league.id}`}
+                      className={`flex-1 flex items-center gap-2 text-xs px-2.5 py-2 transition-all ${
+                        leagueParam === String(league.id) ? 'text-indigo-300' : 'text-zinc-400 hover:text-zinc-200'
+                      }`}
                     >
-                      {getFlagUrl(league.country) ? (
-                        <img 
-                          src={getFlagUrl(league.country)!} 
-                          alt="" 
-                          className="w-4 h-2.5 object-cover rounded-sm shrink-0"
-                        />
+                      {popularLeaguesWithLogos[league.id] ? (
+                        <img src={popularLeaguesWithLogos[league.id]} alt="" className="w-4 h-4 object-contain shrink-0" />
+                      ) : getFlagUrl(league.country) ? (
+                        <img src={getFlagUrl(league.country)!} alt="" className="w-4 h-2.5 object-cover rounded-sm shrink-0" />
                       ) : (
                         <span className="text-zinc-550 text-xxs font-mono">{league.icon}</span>
                       )}
@@ -540,19 +544,23 @@ export default async function Home({ searchParams }: PageProps) {
                   >
                     {/* Cabeçalho da Liga */}
                     <div className="bg-zinc-900/50 border-b border-zinc-850 px-4 py-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {getFlagUrl(league.country) ? (
+                      <Link href={`/liga/${league.id}`} className="group/league-link flex items-center gap-3 hover:opacity-85 transition-opacity">
+                        {league.logo ? (
+                          <div className="flex items-center justify-center w-6 h-6 rounded bg-zinc-950 overflow-hidden text-xxs font-mono font-bold text-zinc-500 shrink-0">
+                            <img src={league.logo} alt="" className="w-full h-full object-contain" />
+                          </div>
+                        ) : getFlagUrl(league.country) ? (
                           <img 
                             src={getFlagUrl(league.country)!} 
                             alt={league.country} 
                             className="w-5 h-3.5 object-cover rounded-sm shadow-sm"
                           />
                         ) : (
-                          <div className="flex items-center justify-center w-6 h-6 rounded bg-zinc-950 text-xxs font-mono font-bold text-zinc-500">
+                          <div className="flex items-center justify-center w-6 h-6 rounded bg-zinc-950 text-xxs font-mono font-bold text-zinc-500 shrink-0">
                             {league.country?.substring(0, 2).toUpperCase() || 'L'}
                           </div>
                         )}
-                        <Link href={`/liga/${league.id}`} className="group/league-link flex flex-col hover:opacity-85 transition-opacity">
+                        <div className="flex flex-col">
                           <h3 className="font-extrabold text-sm text-zinc-200 group-hover/league-link:text-indigo-400 transition-colors">
                             {league.name}
                           </h3>
@@ -561,8 +569,8 @@ export default async function Home({ searchParams }: PageProps) {
                               {league.country}
                             </span>
                           )}
-                        </Link>
-                      </div>
+                        </div>
+                      </Link>
 
                       {user && (
                         <StarButton

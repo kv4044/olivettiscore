@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { createAdminClient } from '../utils/supabase/admin'
-import { getTeamsLogos } from '../services/logoService'
+import { getLeaguesLogos } from '../services/logoService'
 
 // Carregar .env.local
 const envLocalPath = path.resolve(process.cwd(), '.env.local')
@@ -24,30 +24,23 @@ if (fs.existsSync(envLocalPath)) {
 async function run() {
   const supabase = createAdminClient()
   
-  // 1. Limpar cache anterior de 'no_logo' para testar tudo fresco
-  console.log('Limpando "no_logo" da base de dados...')
-  const { count, error: cleanError } = await supabase
-    .from('teams')
+  // Limpar "no_logo" ou logos anteriores das ligas na BD para o teste
+  console.log('Limpando dados de teste das ligas na BD...')
+  await supabase
+    .from('leagues')
     .update({ logo_url: null })
-    .eq('logo_url', 'no_logo')
-    
-  if (cleanError) {
-    console.error('Erro ao limpar a BD:', cleanError)
-    return
-  }
-  console.log(`Registos limpos com sucesso.`)
+    .in('id', [1, 2, 3])
 
-  const testTeams = [
-    { id: 999991, name: 'Benfica' },
-    { id: 999992, name: 'Arsenal' },
-    { id: 999993, name: 'Real Madrid' },
-    { id: 999994, name: 'Porto' }
+  const testLeagues = [
+    { id: 1, name: 'Premier League' },
+    { id: 2, name: 'La Liga' },
+    { id: 3, name: 'Serie A' }
   ]
 
   try {
-    console.log('A chamar getTeamsLogos com os logos corretivos...')
-    const result = await getTeamsLogos(testTeams)
-    console.log('Resultado do mapeamento final:')
+    console.log('A chamar getLeaguesLogos...')
+    const result = await getLeaguesLogos(testLeagues)
+    console.log('Resultado do mapeamento das ligas:')
     console.log(JSON.stringify(result, null, 2))
   } catch (error) {
     console.error('Erro na execução do script:', error)

@@ -201,14 +201,16 @@ export default async function MatchPage({ params }: MatchPageProps) {
           {/* Informações da Liga e Tempo */}
           <div className="flex flex-col items-center gap-3 text-center mb-6 border-b border-zinc-850 pb-4">
             <Link href={`/liga/${event.league.id}`} className="hover:opacity-85 transition-opacity">
-              <span className="inline-flex items-center gap-1.5 text-[10px] uppercase font-black tracking-widest text-indigo-400 bg-indigo-500/5 px-2.5 py-0.5 rounded border border-indigo-950/50">
-                {getFlagUrl(event.league.country) && (
+              <span className="inline-flex items-center gap-1.5 text-[10px] uppercase font-black tracking-widest text-indigo-400 bg-indigo-500/5 px-2.5 py-1 rounded border border-indigo-950/50">
+                {event.league.logo ? (
+                  <img src={event.league.logo} alt="" className="w-3.5 h-3.5 object-contain shrink-0" />
+                ) : getFlagUrl(event.league.country) ? (
                   <img 
                     src={getFlagUrl(event.league.country)!} 
                     alt="" 
                     className="w-3.5 h-2.5 object-cover rounded-sm shrink-0"
                   />
-                )}
+                ) : null}
                 <span>{event.league.name} {event.league.country ? `· ${event.league.country}` : ''}</span>
               </span>
             </Link>
