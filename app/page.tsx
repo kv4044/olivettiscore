@@ -73,7 +73,7 @@ export default async function Home({ searchParams }: PageProps) {
       supabase.from('profiles').select('points').eq('id', user.id).maybeSingle(),
       favoritesService.getUserFavorites()
     ])
-    userPoints = profileRes.data?.points || 0
+    userPoints = (profileRes.data?.points || 0) / 100
     favorites = favRes
 
     if (favorites.teams.length > 0) {
@@ -259,7 +259,7 @@ export default async function Home({ searchParams }: PageProps) {
                 <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
                   <Award className="w-4 h-4 text-indigo-400" />
                   <span className="text-xs font-bold text-indigo-300">
-                    {userPoints} Pontos
+                    {userPoints.toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} Pontos
                   </span>
                 </div>
                 <Link

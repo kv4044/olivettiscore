@@ -216,7 +216,47 @@ async function fetchBzzoiro<T>(endpoint: string, params: Record<string, string> 
 
 // ─── Helpers para lidar com resposta paginada ou array direto ───────────────
 
-async function fetchRawEvents(endpoint: string, params: Record<string, string> = {}): Promise<RawBzzoiroEvent[]> {
+async function fetchRawEvents(
+  endpoint: string,
+  params: Record<string, string> = {},
+  fetchAll = false
+): Promise<RawBzzoiroEvent[]> {
+  if (fetchAll) {
+    const allResults: RawBzzoiroEvent[] = [];
+    const queryParams: Record<string, string> = { ...params, limit: params.limit || '200' };
+    let offset = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      queryParams.offset = String(offset);
+      try {
+        const data = await fetchBzzoiro<{ count: number; results: RawBzzoiroEvent[] }>(endpoint, queryParams);
+        const results = data.results || data || [];
+        if (!Array.isArray(results) || results.length === 0) {
+          hasMore = false;
+        } else {
+          allResults.push(...(results as unknown as RawBzzoiroEvent[]));
+          const totalCount = typeof data.count === 'number' ? data.count : 0;
+          if (allResults.length >= totalCount || results.length < Number(queryParams.limit)) {
+            hasMore = false;
+          } else {
+            offset += Number(queryParams.limit);
+          }
+        }
+      } catch (error) {
+        // Fallback para array plano ou erros
+        try {
+          const arr = await fetchBzzoiro<RawBzzoiroEvent[]>(endpoint, queryParams);
+          if (Array.isArray(arr)) {
+            allResults.push(...arr);
+          }
+        } catch {}
+        hasMore = false;
+      }
+    }
+    return allResults;
+  }
+
   try {
     // Tenta primeiro o formato { results: [...] }
     const data = await fetchBzzoiro<{ results: RawBzzoiroEvent[] }>(endpoint, params);
@@ -306,23 +346,32 @@ export const bzzoiroService = {
   /**
    * Retorna jogos filtrados por parâmetros (data, liga, equipa, estado...).
    */
-  async getEvents(params: {
-    date_from?: string;
-    date_to?: string;
-    league_id?: string;
-    team_id?: string;
-    status?: string;
-  } = {}): Promise<BzzoiroEvent[]> {
+  async getEvents(
+    params: {
+      date_from?: string;
+      date_to?: string;
+      league_id?: string;
+      team_id?: string;
+      status?: string;
+      limit?: string;
+    } = {},
+    options: { fetchAll?: boolean; enrich?: boolean } = {}
+  ): Promise<BzzoiroEvent[]> {
+    const { fetchAll = false, enrich = true } = options;
     const queryParams: Record<string, string> = {};
     if (params.date_from)  queryParams.date_from  = params.date_from;
     if (params.date_to)    queryParams.date_to    = params.date_to;
     if (params.league_id)  queryParams.league_id  = params.league_id;
     if (params.team_id)    queryParams.team_id    = params.team_id;
     if (params.status)     queryParams.status     = params.status;
+    if (params.limit)      queryParams.limit      = params.limit;
 
-    const raw = await fetchRawEvents('/events/', queryParams);
+    const raw = await fetchRawEvents('/events/', queryParams, fetchAll);
     const events = raw.map(transformEvent);
-    return enrichEventsWithLogos(events);
+    if (enrich) {
+      return enrichEventsWithLogos(events);
+    }
+    return events;
   },
 
   /**
@@ -340,6 +389,20 @@ export const bzzoiroService = {
    */
   async getTeamDetails(teamId: number): Promise<any> {
     return fetchBzzoiro<any>(`/teams/${teamId}/`);
+  },
+
+  /**
+   * Retorna o plantel (squad) de uma equipa específica.
+   */
+  async getTeamSquad(teamId: number): Promise<any> {
+    return fetchBzzoiro<any>(`/teams/${teamId}/squad/`);
+  },
+
+  /**
+   * Retorna detalhes de um jogador específico.
+   */
+  async getPlayerDetails(playerId: number): Promise<any> {
+    return fetchBzzoiro<any>(`/players/${playerId}/`);
   },
 
   /**
@@ -361,6 +424,13 @@ export const bzzoiroService = {
    */
   async getEventStats(eventId: number): Promise<any> {
     return fetchBzzoiro<any>(`/events/${eventId}/stats/`);
+  },
+
+  /**
+   * Retorna estatísticas dos jogadores do jogo.
+   */
+  async getEventPlayerStats(eventId: number): Promise<any> {
+    return fetchBzzoiro<any>(`/events/${eventId}/player-stats/`);
   },
 
   /**

@@ -61,6 +61,45 @@ export const predictionsService = {
       }
     }
 
+    // Verificar se já existe uma aposta anterior para este jogo para reembolsar os pontos
+    const { data: existingPred } = await supabase
+      .from('predictions')
+      .select('predicted_outcome')
+      .eq('user_id', user.id)
+      .eq('match_id', matchId)
+      .maybeSingle()
+
+    let previousBetAmount = 0
+    if (existingPred && existingPred.predicted_outcome.includes(':bet=')) {
+      const parts = existingPred.predicted_outcome.split(':')
+      const betPart = parts.find((p: string) => p.startsWith('bet='))
+      if (betPart) previousBetAmount = Number(betPart.split('=')[1]) || 0
+    }
+
+    if (previousBetAmount > 0) {
+      const adminSupabase = createAdminClient()
+      const { data: profile } = await adminSupabase
+        .from('profiles')
+        .select('points')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (profile) {
+        const currentPoints = (profile.points || 0) / 100
+        const { error: refundErr } = await adminSupabase
+          .from('profiles')
+          .update({
+            points: Math.round((currentPoints + previousBetAmount) * 100),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id)
+
+        if (refundErr) {
+          throw new Error('Erro ao devolver os pontos da aposta anterior.')
+        }
+      }
+    }
+
     // 2. Criar ou atualizar o prognóstico
     const { error } = await supabase
       .from('predictions')
@@ -76,6 +115,26 @@ export const predictionsService = {
       )
 
     if (error) {
+      // Reverter reembolso em caso de erro no upsert
+      if (previousBetAmount > 0) {
+        const adminSupabase = createAdminClient()
+        const { data: profile } = await adminSupabase
+          .from('profiles')
+          .select('points')
+          .eq('id', user.id)
+          .maybeSingle()
+        if (profile) {
+          const currentPoints = (profile.points || 0) / 100
+          await adminSupabase
+            .from('profiles')
+            .update({
+              points: Math.round((currentPoints - previousBetAmount) * 100),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', user.id)
+        }
+      }
+
       console.error('Erro ao guardar prognóstico:', error)
       throw new Error(`Falha ao submeter prognóstico: ${error.message}`)
     }
@@ -267,7 +326,8 @@ export const predictionsService = {
     }
 
     // 2. Verificar se o utilizador tem pontos suficientes
-    const { data: profile, error: profileErr } = await supabase
+    const adminSupabase = createAdminClient()
+    const { data: profile, error: profileErr } = await adminSupabase
       .from('profiles')
       .select('points')
       .eq('id', user.id)
@@ -304,7 +364,7 @@ export const predictionsService = {
     }
 
     // 3. Atualizar os pontos do utilizador no perfil (deduzir/reembolsar a diferença)
-    const { error: updateProfileErr } = await supabase
+    const { error: updateProfileErr } = await adminSupabase
       .from('profiles')
       .update({
         points: Math.round((currentPoints - pointsNeeded) * 100),
@@ -334,7 +394,7 @@ export const predictionsService = {
 
     if (error) {
       // Reverter pontos do utilizador em caso de erro
-      await supabase
+      await adminSupabase
         .from('profiles')
         .update({
           points: Math.round(currentPoints * 100),

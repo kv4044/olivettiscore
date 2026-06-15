@@ -3,16 +3,8 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { bzzoiroService } from '@/services/bzzoiro'
 import { getFlagUrl } from '@/utils/flags'
-import LocalTime from '@/components/LocalTime'
-import { 
-  ArrowLeft, 
-  Trophy, 
-  Calendar, 
-  Clock, 
-  ChevronRight,
-  TrendingUp,
-  MapPin
-} from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
+import LeagueTabs from '@/components/LeagueTabs'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -86,9 +78,7 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
     events = combined
   } catch (err) {
     console.error('Erro ao obter jogos da liga:', err)
-  }
-
-  // Filtrar jogos terminados e agendados
+  }  // Filtrar jogos terminados e agendados
   const completedMatches = events
     .filter((e: any) => e.status === 'FT')
     .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -98,6 +88,46 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
     .filter((e: any) => e.status === 'NS')
     .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 5)
+
+  // 4. Obter as estatísticas reais de jogadores da base de dados (Supabase)
+  let statsSummary = {
+    topGoals: [] as any[],
+    topAssists: [] as any[],
+    topPasses: [] as any[],
+    topYellowCards: [] as any[],
+    topRedCards: [] as any[]
+  }
+
+  try {
+    const { data: dbStats } = await supabase
+      .from('player_stats')
+      .select('*, teams(name)')
+      .eq('league_id', leagueId)
+
+    if (dbStats && dbStats.length > 0) {
+      const mappedStats = dbStats.map((s: any) => ({
+        id: Number(s.player_id),
+        name: s.player_name,
+        position: s.position,
+        teamName: s.teams?.name || 'Equipa Desconhecida',
+        goals: s.goals,
+        assists: s.assists,
+        passes: s.passes,
+        yellowCards: s.yellow_cards,
+        redCards: s.red_cards
+      }))
+
+      statsSummary = {
+        topGoals: [...mappedStats].sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name)).slice(0, 10),
+        topAssists: [...mappedStats].sort((a, b) => b.assists - a.assists || a.name.localeCompare(b.name)).slice(0, 10),
+        topPasses: [...mappedStats].sort((a, b) => b.passes - a.passes || a.name.localeCompare(b.name)).slice(0, 10),
+        topYellowCards: [...mappedStats].sort((a, b) => b.yellowCards - a.yellowCards || a.name.localeCompare(b.name)).slice(0, 10),
+        topRedCards: [...mappedStats].sort((a, b) => b.redCards - a.redCards || b.yellowCards - a.yellowCards || a.name.localeCompare(b.name)).slice(0, 10)
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao obter estatísticas de jogadores da base de dados:', err)
+  }
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-zinc-950 to-black text-zinc-100 flex flex-col font-sans">
@@ -166,235 +196,12 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
           </div>
         </section>
 
-        {/* DETAILS GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
-          {/* COLUNA ESQUERDA: Classificações (5/12) */}
-          <div className="lg:col-span-5 space-y-6">
-            
-            {/* LEAGUE STANDINGS CARD */}
-            <div className="backdrop-blur-md bg-zinc-900/20 border border-zinc-800/60 rounded-3xl p-5 shadow-lg space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
-                <Trophy className="w-4 h-4 text-amber-400" />
-                <span>Tabela Classificativa</span>
-              </h3>
-
-              {leagueStandings && (leagueStandings.standings || leagueStandings.groups) ? (
-                <div className="space-y-6 max-h-[600px] overflow-y-auto pr-0.5 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
-                  {leagueStandings.grouped && leagueStandings.groups ? (
-                    Object.entries(leagueStandings.groups)
-                      .sort((a, b) => a[0].localeCompare(b[0]))
-                      .map(([groupName, rows]: [string, any]) => (
-                        <div key={groupName} className="space-y-2">
-                          <div className="bg-indigo-500/10 border border-indigo-950/30 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider text-indigo-400 flex items-center justify-between">
-                            <span>{groupName}</span>
-                            <span className="text-[9px] text-zinc-500 font-normal normal-case">Grupo</span>
-                          </div>
-                          <div className="border border-zinc-850 rounded-2xl overflow-hidden bg-zinc-950/20">
-                            <table className="w-full text-left text-[11px] border-collapse">
-                              <thead>
-                                <tr className="bg-zinc-950 text-zinc-500 font-bold uppercase tracking-wider text-[9px] border-b border-zinc-850">
-                                  <th className="py-2 px-3 text-center w-8">#</th>
-                                  <th className="py-2 px-2">Equipa</th>
-                                  <th className="py-2 px-2 text-center">J</th>
-                                  <th className="py-2 px-2 text-center">Forma</th>
-                                  <th className="py-2 px-3 text-right">Pts</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-zinc-900/50">
-                                {rows.map((row: any) => (
-                                  <tr 
-                                    key={row.team_id}
-                                    className="transition-colors text-zinc-400 hover:bg-zinc-900/20"
-                                  >
-                                    <td className="py-2 px-3 text-center font-bold">
-                                      {row.position}
-                                    </td>
-                                    <td className="py-2 px-2 truncate max-w-[150px] font-bold">
-                                      <Link href={`/equipa/${row.team_id}`} className="hover:text-indigo-400 hover:underline">
-                                        {row.team_name}
-                                      </Link>
-                                    </td>
-                                    <td className="py-2 px-2 text-center font-medium">
-                                      {row.played}
-                                    </td>
-                                    <td className="py-2 px-2 text-center">
-                                      <span className="font-mono text-[9px] tracking-wide text-zinc-500">
-                                        {row.form || '-'}
-                                      </span>
-                                    </td>
-                                    <td className="py-2 px-3 text-right font-black text-zinc-200">
-                                      {row.pts}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      ))
-                  ) : leagueStandings.standings ? (
-                    <div className="border border-zinc-850 rounded-2xl overflow-hidden bg-zinc-950/20">
-                      <table className="w-full text-left text-[11px] border-collapse">
-                        <thead>
-                          <tr className="bg-zinc-950 text-zinc-500 font-bold uppercase tracking-wider text-[9px] border-b border-zinc-850">
-                            <th className="py-2.5 px-3 text-center w-8">#</th>
-                            <th className="py-2.5 px-2">Clube</th>
-                            <th className="py-2.5 px-2 text-center">J</th>
-                            <th className="py-2.5 px-2 text-center">Forma</th>
-                            <th className="py-2.5 px-3 text-right">Pts</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-900/50">
-                          {leagueStandings.standings.map((row: any) => (
-                            <tr 
-                              key={row.team_id}
-                              className="transition-colors text-zinc-400 hover:bg-zinc-900/20"
-                            >
-                              <td className="py-2.5 px-3 text-center font-bold">
-                                {row.position}
-                              </td>
-                              <td className="py-2.5 px-2 truncate max-w-[150px] font-bold">
-                                <Link href={`/equipa/${row.team_id}`} className="hover:text-indigo-400 hover:underline">
-                                  {row.team_name}
-                                </Link>
-                              </td>
-                              <td className="py-2.5 px-2 text-center font-medium">
-                                {row.played}
-                              </td>
-                              <td className="py-2.5 px-2 text-center">
-                                <span className="font-mono text-[9px] tracking-wide text-zinc-500">
-                                  {row.form || '-'}
-                                </span>
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-black text-zinc-200">
-                                {row.pts}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="p-4 text-center text-zinc-550 text-xs">
-                      Sem classificação disponível no momento.
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="p-4 text-center text-zinc-500 text-xs">
-                  Sem classificação disponível no momento.
-                </div>
-              )}
-            </div>
-
-          </div>
-
-          {/* COLUNA DIREITA: Calendário de Jogos (7/12) */}
-          <div className="lg:col-span-7 space-y-6">
-            
-            {/* JOGOS CARD */}
-            <div className="backdrop-blur-md bg-zinc-900/20 border border-zinc-800/60 rounded-3xl p-6 shadow-lg space-y-6">
-              
-              <h3 className="text-sm font-black uppercase tracking-wider text-zinc-300 flex items-center gap-2 border-b border-zinc-850 pb-3">
-                <Calendar className="w-5 h-5 text-purple-400" />
-                <span>Historial de Jogos</span>
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                
-                {/* ÚLTIMOS RESULTADOS */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-zinc-500 flex items-center gap-1.5 pl-1">
-                    <TrendingUp className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>Últimos Resultados</span>
-                  </h4>
-                  
-                  {completedMatches.length === 0 ? (
-                    <div className="p-8 text-center text-zinc-550 border border-zinc-900 rounded-2xl text-xs">
-                      Nenhum jogo terminado recente.
-                    </div>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {completedMatches.map((event: any) => (
-                        <div 
-                          key={event.id}
-                          className="p-3 bg-zinc-950/30 border border-zinc-900 rounded-xl flex flex-col gap-1.5 hover:bg-zinc-900/20 transition-all text-xxs font-semibold"
-                        >
-                          <Link href={`/jogo/${event.id}`} className="space-y-1 block">
-                            <p className="truncate text-zinc-300 hover:text-indigo-400">
-                              {event.home_team.name}
-                            </p>
-                            <p className="truncate text-zinc-300 hover:text-indigo-400">
-                              {event.away_team.name}
-                            </p>
-                          </Link>
-
-                          <div className="flex items-center justify-between border-t border-zinc-850/40 pt-1.5">
-                            <span className="text-zinc-500 font-mono text-[9px]">
-                              <LocalTime utcDateString={event.date} />
-                            </span>
-                            <span className="font-mono font-black text-[10px] text-indigo-400 bg-indigo-500/5 px-2 py-0.5 border border-indigo-950 rounded select-none text-center">
-                              {event.score.home}-{event.score.away}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* PRÓXIMOS COMPROMISSOS */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-zinc-500 flex items-center gap-1.5 pl-1">
-                    <Clock className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>Próximos Jogos</span>
-                  </h4>
-
-                  {upcomingMatches.length === 0 ? (
-                    <div className="p-8 text-center text-zinc-550 border border-zinc-900 rounded-2xl text-xs">
-                      Nenhum jogo agendado.
-                    </div>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {upcomingMatches.map((event: any) => (
-                        <div 
-                          key={event.id}
-                          className="p-3 bg-zinc-950/30 border border-zinc-900 rounded-xl flex flex-col gap-1.5 hover:bg-zinc-900/20 transition-all text-xxs font-semibold"
-                        >
-                          <Link href={`/jogo/${event.id}`} className="space-y-1 block">
-                            <p className="truncate text-zinc-300 hover:text-indigo-400">
-                              {event.home_team.name}
-                            </p>
-                            <p className="truncate text-zinc-300 hover:text-indigo-400">
-                              {event.away_team.name}
-                            </p>
-                          </Link>
-
-                          <div className="flex items-center justify-between border-t border-zinc-850/40 pt-1.5">
-                            <span className="text-zinc-550">
-                              <LocalTime utcDateString={event.date} />
-                            </span>
-                            <Link
-                              href={`/jogo/${event.id}`}
-                              className="text-[9px] uppercase font-extrabold tracking-wider text-indigo-400 hover:text-indigo-300"
-                            >
-                              Apostar
-                            </Link>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
+        <LeagueTabs
+          leagueStandings={leagueStandings}
+          completedMatches={completedMatches}
+          upcomingMatches={upcomingMatches}
+          statsSummary={statsSummary}
+        />
 
       </main>
 
