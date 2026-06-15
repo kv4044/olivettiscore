@@ -66,6 +66,7 @@ export default async function Home({ searchParams }: PageProps) {
 
   let userPoints = 0
   let favorites: UserFavorites = { leagues: [], teams: [], matches: [] }
+  let favoriteTeamsList: Array<{ id: number; name: string; logo_url?: string }> = []
 
   if (user) {
     const [profileRes, favRes] = await Promise.all([
@@ -74,6 +75,16 @@ export default async function Home({ searchParams }: PageProps) {
     ])
     userPoints = profileRes.data?.points || 0
     favorites = favRes
+
+    if (favorites.teams.length > 0) {
+      const { data: teamsData } = await supabase
+        .from('teams')
+        .select('id, name, logo_url')
+        .in('id', favorites.teams)
+      if (teamsData) {
+        favoriteTeamsList = teamsData
+      }
+    }
   }
 
   // Obter nomes das ligas e equipas se os filtros estiverem ativos
@@ -354,6 +365,38 @@ export default async function Home({ searchParams }: PageProps) {
             </div>
           )}
 
+          {/* Minhas Equipas (Favorite Teams) */}
+          {user && favoriteTeamsList.length > 0 && (
+            <div className="backdrop-blur-md bg-zinc-900/20 border border-zinc-800/60 rounded-2xl p-4 shadow">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-3 flex items-center gap-1.5">
+                <Star className="w-3.5 h-3.5 text-indigo-400 fill-indigo-400" />
+                <span>Minhas Equipas</span>
+              </h3>
+              <ul className="space-y-1.5">
+                {favoriteTeamsList.map((team) => (
+                  <li key={team.id}>
+                    <Link
+                      href={`/equipa/${team.id}`}
+                      className="flex items-center justify-between text-xs px-2.5 py-2 rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/50"
+                    >
+                      <div className="flex items-center gap-2">
+                        {team.logo_url && team.logo_url !== 'no_logo' ? (
+                          <img src={team.logo_url} alt="" className="w-4 h-4 object-contain shrink-0" />
+                        ) : (
+                          <div className="w-4 h-4 rounded bg-zinc-950 border border-zinc-850 flex items-center justify-center text-[8px] font-black text-zinc-500 shrink-0">
+                            {team.name.substring(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <span className="truncate">{team.name}</span>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Popular Competitions List */}
           <div className="backdrop-blur-md bg-zinc-900/20 border border-zinc-800/60 rounded-2xl p-4 shadow">
             <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-3 flex items-center gap-1.5">
@@ -378,10 +421,8 @@ export default async function Home({ searchParams }: PageProps) {
                 <li key={league.id}>
                   <div className="flex items-center justify-between rounded-lg transition-all hover:bg-zinc-900/50">
                     <Link
-                      href={`/?league=${league.id}`}
-                      className={`flex-1 flex items-center gap-2 text-xs px-2.5 py-2 transition-all ${
-                        leagueParam === String(league.id) ? 'text-indigo-300' : 'text-zinc-400 hover:text-zinc-200'
-                      }`}
+                      href={`/liga/${league.id}`}
+                      className="flex-1 flex items-center gap-2 text-xs px-2.5 py-2 transition-all text-zinc-400 hover:text-zinc-200"
                     >
                       {popularLeaguesWithLogos[league.id] ? (
                         <img src={popularLeaguesWithLogos[league.id]} alt="" className="w-4 h-4 object-contain shrink-0" />

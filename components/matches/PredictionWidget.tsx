@@ -12,6 +12,7 @@ interface PredictionWidgetProps {
   awayTeamName: string;
   isCalculated: boolean;
   pointsAwarded: number;
+  odds?: any;
 }
 
 export default function PredictionWidget({
@@ -22,6 +23,7 @@ export default function PredictionWidget({
   awayTeamName,
   isCalculated,
   pointsAwarded,
+  odds,
 }: PredictionWidgetProps) {
   const [prediction, setPrediction] = useState<'1' | 'X' | '2' | null>(initialPrediction)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -98,6 +100,9 @@ export default function PredictionWidget({
         >
           <span className="text-xs text-zinc-500 font-normal uppercase tracking-wider">Casa</span>
           <span className="truncate max-w-[100px]">{homeTeamName.split(' ')[0]}</span>
+          {odds?.home_win && (
+            <span className="text-[10px] text-zinc-400 font-mono font-bold mt-0.5">@{Number(odds.home_win).toFixed(2)}</span>
+          )}
         </button>
 
         <button
@@ -107,6 +112,9 @@ export default function PredictionWidget({
         >
           <span className="text-xs text-zinc-500 font-normal uppercase tracking-wider">Empate</span>
           <span>X</span>
+          {odds?.draw && (
+            <span className="text-[10px] text-zinc-400 font-mono font-bold mt-0.5">@{Number(odds.draw).toFixed(2)}</span>
+          )}
         </button>
 
         <button
@@ -116,6 +124,9 @@ export default function PredictionWidget({
         >
           <span className="text-xs text-zinc-500 font-normal uppercase tracking-wider">Fora</span>
           <span className="truncate max-w-[100px]">{awayTeamName.split(' ')[0]}</span>
+          {odds?.away_win && (
+            <span className="text-[10px] text-zinc-400 font-mono font-bold mt-0.5">@{Number(odds.away_win).toFixed(2)}</span>
+          )}
         </button>
       </div>
 

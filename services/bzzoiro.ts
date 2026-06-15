@@ -383,4 +383,11 @@ export const bzzoiroService = {
   async getLeagueStandings(leagueId: number): Promise<any> {
     return fetchBzzoiro<any>(`/leagues/${leagueId}/standings/`);
   },
+
+  /**
+   * Retorna as odds de um jogo específico.
+   */
+  async getEventOdds(eventId: number): Promise<any> {
+    return fetchBzzoiro<any>(`/events/${eventId}/odds/`).catch(() => null);
+  },
 };

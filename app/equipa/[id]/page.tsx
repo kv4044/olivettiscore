@@ -5,6 +5,7 @@ import { bzzoiroService } from '@/services/bzzoiro'
 import { getTeamsLogos } from '@/services/logoService'
 import { getFlagUrl } from '@/utils/flags'
 import LocalTime from '@/components/LocalTime'
+import StarButton from '@/components/favorites/StarButton'
 import { 
   ArrowLeft, 
   MapPin, 
@@ -29,6 +30,21 @@ export default async function TeamDetailsPage({ params }: PageProps) {
 
   if (isNaN(teamId)) {
     notFound()
+  }
+
+  // Verificar se a equipa está nos favoritos do utilizador
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  let isTeamFav = false
+  if (user) {
+    const { data: favData } = await supabase
+      .from('favorite_teams')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('team_id', teamId)
+      .maybeSingle()
+    isTeamFav = !!favData
   }
 
   // 1. Procurar detalhes da equipa na API Bzzoiro
@@ -168,9 +184,20 @@ export default async function TeamDetailsPage({ params }: PageProps) {
 
           {/* Nome e Nacionalidade */}
           <div className="text-center md:text-left space-y-2.5">
-            <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight leading-none">
-              {teamDetails.name}
-            </h1>
+            <div className="flex items-center justify-center md:justify-start gap-3 flex-wrap">
+              <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight leading-none">
+                {teamDetails.name}
+              </h1>
+              {user && (
+                <StarButton
+                  type="team"
+                  id={teamId}
+                  name={teamDetails.name}
+                  isFavorited={isTeamFav}
+                  className="bg-zinc-950/60 border border-zinc-850 hover:bg-zinc-900"
+                />
+              )}
+            </div>
             <div className="flex items-center justify-center md:justify-start gap-2 text-xs font-bold text-zinc-400">
               {getFlagUrl(teamDetails.country) && (
                 <img 

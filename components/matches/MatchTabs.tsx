@@ -15,8 +15,10 @@ import {
   MapPin,
   Gavel,
   Building2,
+  TrendingUp,
 } from 'lucide-react'
 import PredictionWidget from './PredictionWidget'
+import BetWidget from './BetWidget'
 
 interface MatchTabsProps {
   event: any
@@ -29,6 +31,8 @@ interface MatchTabsProps {
   lineups: any | null
   standings: any | null
   incidents?: any | null
+  odds?: any
+  userPoints?: number
 }
 
 export default function MatchTabs({
@@ -42,10 +46,32 @@ export default function MatchTabs({
   lineups,
   standings,
   incidents,
+  odds,
+  userPoints = 0,
 }: MatchTabsProps) {
   const [activeTab, setActiveTab] = useState<
-    'info' | 'prediction' | 'stats' | 'lineups' | 'standings'
+    'info' | 'prediction' | 'bet' | 'stats' | 'lineups' | 'standings'
   >('info')
+
+  // Descodificar prognóstico/aposta anterior
+  let parsedPredictionOutcome: '1' | 'X' | '2' | null = null
+  let parsedBetAmount: number = 0
+  let parsedBetOdd: number = 1.0
+  let isBetPrediction = false
+
+  if (userPrediction && userPrediction.predicted_outcome) {
+    if (userPrediction.predicted_outcome.includes(':bet=')) {
+      isBetPrediction = true
+      const parts = userPrediction.predicted_outcome.split(':')
+      parsedPredictionOutcome = parts[0]
+      const betPart = parts.find((p: string) => p.startsWith('bet='))
+      if (betPart) parsedBetAmount = Number(betPart.split('=')[1]) || 0
+      const oddPart = parts.find((p: string) => p.startsWith('odd='))
+      if (oddPart) parsedBetOdd = Number(oddPart.split('=')[1]) || 1.0
+    } else {
+      parsedPredictionOutcome = userPrediction.predicted_outcome
+    }
+  }
 
   const isMatchStarted = event.status !== 'NS'
 
@@ -173,6 +199,11 @@ export default function MatchTabs({
           id="prediction"
           icon={<Award className="w-3.5 h-3.5" />}
           label="Prognósticos"
+        />
+        <TabBtn
+          id="bet"
+          icon={<TrendingUp className="w-3.5 h-3.5 text-amber-500" />}
+          label="Aposta de Pontos"
         />
         <TabBtn
           id="stats"
@@ -446,18 +477,17 @@ export default function MatchTabs({
             {isUserLoggedIn ? (
               <PredictionWidget
                 matchId={matchId}
-                initialPrediction={
-                  userPrediction ? userPrediction.predicted_outcome : null
-                }
+                initialPrediction={parsedPredictionOutcome}
                 isMatchStarted={isMatchStarted}
                 homeTeamName={event.home_team.name}
                 awayTeamName={event.away_team.name}
                 isCalculated={
                   userPrediction ? userPrediction.is_calculated : false
                 }
-pointsAwarded={
+                pointsAwarded={
                   userPrediction ? userPrediction.points_awarded : 0
                 }
+                odds={odds}
               />
             ) : (
               <div className="backdrop-blur-xl bg-zinc-900/40 border border-zinc-800 rounded-3xl p-8 shadow-xl text-center max-w-md w-full">
@@ -468,6 +498,52 @@ pointsAwarded={
                 <p className="text-xs text-zinc-400 mt-2 leading-relaxed">
                   Precisas de estar autenticado para submeter prognósticos e
                   ganhar pontos Olivetti Score.
+                </p>
+                <div className="mt-6">
+                  <Link
+                    href="/login"
+                    className="py-3 px-4 rounded-xl font-bold bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs block transition-all"
+                  >
+                    Fazer Login / Criar Conta
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════
+            ABA 2.5 — APOSTA DE PONTOS
+           ═══════════════════════════════════════════════════════════ */}
+        {activeTab === 'bet' && (
+          <div className="flex flex-col items-center justify-center py-6 animate-in fade-in duration-300">
+            {isUserLoggedIn ? (
+              <BetWidget
+                matchId={matchId}
+                homeTeamName={event.home_team.name}
+                awayTeamName={event.away_team.name}
+                isMatchStarted={isMatchStarted}
+                odds={odds}
+                userPoints={userPoints}
+                initialOutcome={parsedPredictionOutcome}
+                initialBetAmount={parsedBetAmount}
+                initialBetOdd={parsedBetOdd}
+                isCalculated={
+                  userPrediction ? userPrediction.is_calculated : false
+                }
+                pointsAwarded={
+                  userPrediction ? userPrediction.points_awarded : 0
+                }
+              />
+            ) : (
+              <div className="backdrop-blur-xl bg-zinc-900/40 border border-zinc-800 rounded-3xl p-8 shadow-xl text-center max-w-md w-full">
+                <ShieldAlert className="w-12 h-12 text-indigo-400 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-zinc-200">
+                  Sessão Necessária
+                </h3>
+                <p className="text-xs text-zinc-400 mt-2 leading-relaxed">
+                  Precisas de estar autenticado para realizar apostas de pontos
+                  e multiplicar os teus ganhos.
                 </p>
                 <div className="mt-6">
                   <Link

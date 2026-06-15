@@ -14,12 +14,87 @@ interface TheSportsDBResponse {
   teams: TheSportsDBTeam[] | null
 }
 
-/**
- * Procura o logo da equipa no TheSportsDB através do nome.
- */
+const TEAM_NAME_TRANSLATIONS: Record<string, string> = {
+  'espanha': 'Spain',
+  'alemanha': 'Germany',
+  'itália': 'Italy',
+  'italia': 'Italy',
+  'frança': 'France',
+  'franca': 'France',
+  'brasil': 'Brazil',
+  'inglaterra': 'England',
+  'países baixos': 'Netherlands',
+  'paises baixos': 'Netherlands',
+  'holanda': 'Netherlands',
+  'marrocos': 'Morocco',
+  'suiça': 'Switzerland',
+  'suíça': 'Switzerland',
+  'camarões': 'Cameroon',
+  'camaroes': 'Cameroon',
+  'gales': 'Wales',
+  'irlanda': 'Ireland',
+  'escócia': 'Scotland',
+  'escocia': 'Scotland',
+  'estados unidos': 'USA',
+  'eua': 'USA',
+  'coreia do sul': 'South Korea',
+  'japão': 'Japan',
+  'japao': 'Japan',
+  'uruguai': 'Uruguay',
+  'méxico': 'Mexico',
+  'mexico': 'Mexico',
+  'polónia': 'Poland',
+  'polonia': 'poland',
+  'dinamarca': 'Denmark',
+  'tunísia': 'Tunisia',
+  'tunisia': 'Tunisia',
+  'gana': 'Ghana',
+  'senegal': 'Senegal',
+  'equador': 'Ecuador',
+  'catar': 'Qatar',
+  'austrália': 'Australia',
+  'australia': 'Australia',
+  'croácia': 'Croatia',
+  'croatia': 'Croatia',
+  'suécia': 'Sweden',
+  'suecia': 'Sweden',
+  'ucrânia': 'Ukraine',
+  'ucrania': 'Ukraine',
+  'chéquia': 'Czech Republic',
+  'republica checa': 'Czech Republic',
+  'república checa': 'Czech Republic',
+  'áustria': 'Austria',
+  'austria': 'Austria',
+  'turquia': 'Turkey',
+  'bélgica': 'Belgium',
+  'belgica': 'Belgium',
+  'finlândia': 'Finland',
+  'finlandia': 'Finland',
+  'hungria': 'Hungary',
+  'eslováquia': 'Slovakia',
+  'eslovaquia': 'Slovakia',
+  'roménia': 'Romania',
+  'romenia': 'Romania',
+  'albânia': 'Albania',
+  'albania': 'Albania',
+  'geórgia': 'Georgia',
+  'georgia': 'Georgia',
+  'eslovénia': 'Slovenia',
+  'eslovenia': 'Slovenia',
+  'sérvia': 'Serbia',
+  'servia': 'Serbia'
+};
+
 async function fetchLogoFromAPI(teamName: string): Promise<string | null> {
   const apiKey = process.env.THESPORTSDB_API_KEY || '3'
-  const url = `${THESPORTSDB_BASE_URL}/${apiKey}/searchteams.php?t=${encodeURIComponent(teamName)}`
+  
+  let searchName = teamName.trim();
+  const lowerName = searchName.toLowerCase();
+  if (TEAM_NAME_TRANSLATIONS[lowerName]) {
+    searchName = TEAM_NAME_TRANSLATIONS[lowerName];
+  }
+  
+  const url = `${THESPORTSDB_BASE_URL}/${apiKey}/searchteams.php?t=${encodeURIComponent(searchName)}`
   
   try {
     const res = await fetch(url, { next: { revalidate: 86400 } }) // Cache de 1 dia na resposta HTTP
@@ -32,8 +107,11 @@ async function fetchLogoFromAPI(teamName: string): Promise<string | null> {
     const soccerTeams = data.teams.filter(t => t.strSport?.toLowerCase() === 'soccer')
     if (soccerTeams.length === 0) return null
     
-    // 1. Procurar correspondência exata do nome (ignora maiúsculas/minúsculas)
-    const exactMatch = soccerTeams.find(t => t.strTeam.toLowerCase() === teamName.toLowerCase())
+    // 1. Procurar correspondência exata do nome original ou nome traduzido
+    const exactMatch = soccerTeams.find(t => 
+      t.strTeam.toLowerCase() === teamName.toLowerCase() ||
+      t.strTeam.toLowerCase() === searchName.toLowerCase()
+    )
     if (exactMatch && exactMatch.strBadge) {
       return exactMatch.strBadge
     }
@@ -95,11 +173,9 @@ export async function getTeamsLogos(teams: { id: number; name: string }[]): Prom
   const apiFetchPromises = uniqueTeams.map(async (team) => {
     const dbTeam = dbTeamMap.get(team.id)
     
-    // Se a equipa já existe na BD e já tem um logo definido (ou marcador 'no_logo')
-    if (dbTeam && dbTeam.logo_url !== null) {
-      if (dbTeam.logo_url && dbTeam.logo_url !== 'no_logo') {
-        logoMap[team.id] = dbTeam.logo_url
-      }
+    // Se a equipa já existe na BD e já tem um logo definido (que não seja 'no_logo')
+    if (dbTeam && dbTeam.logo_url !== null && dbTeam.logo_url !== 'no_logo') {
+      logoMap[team.id] = dbTeam.logo_url
       return
     }
     

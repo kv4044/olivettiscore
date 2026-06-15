@@ -58,3 +58,17 @@ export async function submitPredictionAction(matchId: number, outcome: '1' | 'X'
     return { success: false, message: error.message || 'Erro ao submeter prognóstico.' }
   }
 }
+
+/**
+ * Ação de Servidor para submeter aposta de pontos.
+ */
+export async function submitBetAction(matchId: number, outcome: '1' | 'X' | '2' | 'OVER_25' | 'UNDER_25' | 'BTTS_YES' | 'BTTS_NO', betAmount: number, odd: number) {
+  try {
+    const res = await predictionsService.submitBet(matchId, outcome, betAmount, odd)
+    revalidatePath(`/jogo/${matchId}`)
+    revalidatePath('/dashboard')
+    return res
+  } catch (error: any) {
+    return { success: false, message: error.message || 'Erro ao submeter aposta.' }
+  }
+}

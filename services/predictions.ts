@@ -134,20 +134,51 @@ export const predictionsService = {
             continue
           }
 
-          // Determinar resultado real
-          let realOutcome: '1' | 'X' | '2'
-          if (homeScore > awayScore) {
-            realOutcome = '1'
-          } else if (homeScore < awayScore) {
-            realOutcome = '2'
-          } else {
-            realOutcome = 'X'
-          }
+          const totalGoals = homeScore + awayScore
+          const isBtts = homeScore > 0 && awayScore > 0
 
           // Atribuir pontos a cada utilizador
           for (const pred of preds) {
-            const isCorrect = pred.predicted_outcome === realOutcome
-            const pointsToAward = isCorrect ? 5 : 0
+            let outcome = pred.predicted_outcome
+            let betAmount = 0
+            let odd = 1.0
+            let isBet = false
+
+            if (pred.predicted_outcome.includes(':bet=')) {
+              isBet = true
+              const parts = pred.predicted_outcome.split(':')
+              outcome = parts[0]
+              
+              const betPart = parts.find((p: string) => p.startsWith('bet='))
+              if (betPart) betAmount = Number(betPart.split('=')[1]) || 0
+
+              const oddPart = parts.find((p: string) => p.startsWith('odd='))
+              if (oddPart) odd = Number(oddPart.split('=')[1]) || 1.0
+            }
+
+            let isCorrect = false
+            if (outcome === '1') {
+              isCorrect = homeScore > awayScore
+            } else if (outcome === 'X') {
+              isCorrect = homeScore === awayScore
+            } else if (outcome === '2') {
+              isCorrect = homeScore < awayScore
+            } else if (outcome === 'OVER_25') {
+              isCorrect = totalGoals > 2.5
+            } else if (outcome === 'UNDER_25') {
+              isCorrect = totalGoals < 2.5
+            } else if (outcome === 'BTTS_YES') {
+              isCorrect = isBtts
+            } else if (outcome === 'BTTS_NO') {
+              isCorrect = !isBtts
+            }
+
+            let pointsToAward = 0
+            if (isBet) {
+              pointsToAward = isCorrect ? Math.round(betAmount * odd) : 0
+            } else {
+              pointsToAward = isCorrect && (outcome === '1' || outcome === 'X' || outcome === '2') ? 5 : 0
+            }
 
             // Iniciar transação/atualização individual
             // 2.1 Atualizar o registo da previsão
@@ -206,4 +237,118 @@ export const predictionsService = {
 
     return { processed, pointsAwarded: pointsAwardedTotal }
   },
+
+  /**
+   * Submete ou atualiza uma aposta com pontos para um jogo.
+   * Deduz os pontos do utilizador e guarda a aposta codificada na base de dados.
+   */
+  async submitBet(matchId: number, outcome: '1' | 'X' | '2' | 'OVER_25' | 'UNDER_25' | 'BTTS_YES' | 'BTTS_NO', betAmount: number, odd: number): Promise<{ success: boolean; message: string }> {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Utilizador não autenticado.')
+
+    if (isNaN(betAmount) || betAmount <= 0) {
+      return { success: false, message: 'Quantidade de pontos inválida.' }
+    }
+
+    // 1. Obter o estado do jogo da API Bzzoiro para garantir que não começou
+    let matchDetails
+    try {
+      matchDetails = await bzzoiroService.getEventDetails(matchId)
+    } catch (err) {
+      throw new Error('Não foi possível obter informações do jogo para validar a aposta.')
+    }
+
+    if (matchDetails.status !== 'NS') {
+      return {
+        success: false,
+        message: 'Não é possível apostar em jogos que já começaram ou terminaram.',
+      }
+    }
+
+    // 2. Verificar se o utilizador tem pontos suficientes
+    const { data: profile, error: profileErr } = await supabase
+      .from('profiles')
+      .select('points')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profileErr || !profile) {
+      throw new Error('Não foi possível verificar os seus pontos.')
+    }
+
+    const currentPoints = profile.points || 0
+    
+    // Verificar se já existe uma aposta anterior para este jogo para ajustar os pontos
+    const { data: existingPred } = await supabase
+      .from('predictions')
+      .select('predicted_outcome')
+      .eq('user_id', user.id)
+      .eq('match_id', matchId)
+      .maybeSingle()
+
+    let previousBetAmount = 0
+    if (existingPred && existingPred.predicted_outcome.includes(':bet=')) {
+      const parts = existingPred.predicted_outcome.split(':')
+      const betPart = parts.find((p: string) => p.startsWith('bet='))
+      if (betPart) previousBetAmount = Number(betPart.split('=')[1]) || 0
+    }
+
+    // O utilizador precisa de pontos suficientes (pontos atuais + reembolso da aposta anterior, se aplicável)
+    const pointsNeeded = betAmount - previousBetAmount
+    if (currentPoints < pointsNeeded) {
+      return {
+        success: false,
+        message: `Pontos insuficientes. Tem ${currentPoints} pontos, mas precisa de ${betAmount} pontos no total.`,
+      }
+    }
+
+    // 3. Atualizar os pontos do utilizador no perfil (deduzir/reembolsar a diferença)
+    const { error: updateProfileErr } = await supabase
+      .from('profiles')
+      .update({
+        points: currentPoints - pointsNeeded,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user.id)
+
+    if (updateProfileErr) {
+      throw new Error('Erro ao atualizar os pontos do seu perfil.')
+    }
+
+    // 4. Gravar a aposta codificada na tabela predictions
+    const encodedOutcome = `${outcome}:bet=${betAmount}:odd=${odd}`
+
+    const { error } = await supabase
+      .from('predictions')
+      .upsert(
+        {
+          user_id: user.id,
+          match_id: matchId,
+          predicted_outcome: encodedOutcome,
+          is_calculated: false,
+          points_awarded: 0,
+        },
+        { onConflict: 'user_id,match_id' }
+      )
+
+    if (error) {
+      // Reverter pontos do utilizador em caso de erro
+      await supabase
+        .from('profiles')
+        .update({
+          points: currentPoints,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+
+      console.error('Erro ao guardar aposta:', error)
+      throw new Error(`Falha ao submeter aposta: ${error.message}`)
+    }
+
+    return {
+      success: true,
+      message: 'Aposta submetida com sucesso!',
+    }
+  }
 }

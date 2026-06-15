@@ -14,7 +14,8 @@ import {
   Play, 
   CheckCircle2, 
   Calendar,
-  AlertCircle
+  AlertCircle,
+  TrendingUp
 } from 'lucide-react'
 
 interface MatchPageProps {
@@ -32,14 +33,25 @@ export default async function MatchPage({ params }: MatchPageProps) {
     return notFound()
   }
 
-  // 1. Obter Sessão do Utilizador
+  // 1. Obter Sessão do Utilizador e Pontos
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  let userPoints = 0
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('points')
+      .eq('id', user.id)
+      .maybeSingle()
+    userPoints = profile?.points || 0
+  }
 
   // 2. Obter Dados Relacionados ao Jogo (API Bzzoiro e Supabase)
   let event: any = null
   let isMatchFav = false
   let userPrediction: any = null
+  let odds: any = null
   let venue: any = null
   let referee: any = null
   let stats: any = null
@@ -49,15 +61,17 @@ export default async function MatchPage({ params }: MatchPageProps) {
   let errorMsg: string | null = null
 
   try {
-    const [eventRes, favRes, predRes] = await Promise.all([
+    const [eventRes, favRes, predRes, oddsRes] = await Promise.all([
       bzzoiroService.getEventDetails(matchId),
       user ? favoritesService.getUserFavorites() : Promise.resolve<UserFavorites>({ leagues: [], teams: [], matches: [] }),
-      user ? predictionsService.getUserPredictionForMatch(matchId) : Promise.resolve(null)
+      user ? predictionsService.getUserPredictionForMatch(matchId) : Promise.resolve(null),
+      bzzoiroService.getEventOdds(matchId)
     ])
 
     event = eventRes
     isMatchFav = favRes.matches.includes(matchId)
     userPrediction = predRes
+    odds = oddsRes?.odds || null
 
     if (event) {
       const [venueRes, refereeRes, statsRes, lineupsRes, standingsRes, incidentsRes] = await Promise.all([
@@ -369,6 +383,76 @@ export default async function MatchPage({ params }: MatchPageProps) {
           )}
         </section>
 
+        {/* ODDS DAS CASAS DE APOSTAS */}
+        <section className="backdrop-blur-md bg-zinc-900/20 border border-zinc-800/60 rounded-3xl p-6 shadow-lg space-y-6">
+          <div className="flex items-center justify-between border-b border-zinc-850 pb-3">
+            <h3 className="text-sm font-black uppercase tracking-wider text-zinc-300 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-indigo-400" />
+              <span>Odds e Mercados (1X2 / Golos)</span>
+            </h3>
+            <span className="text-[10px] font-bold text-zinc-505 uppercase text-zinc-500">
+              Bzzoiro Bookmaker
+            </span>
+          </div>
+
+          {odds && (odds.home_win || odds.draw || odds.away_win || odds.over_25_goals || odds.btts_yes) ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Mercado 1X2 */}
+              <div className="p-4 bg-zinc-950/40 border border-zinc-850/60 rounded-2xl space-y-3">
+                <h4 className="text-[11px] font-black text-zinc-500 uppercase tracking-wider">Resultado Final (1X2)</h4>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="p-3 bg-zinc-900/40 border border-zinc-850 rounded-xl text-center">
+                    <span className="block text-[10px] text-zinc-500 font-bold uppercase mb-1">1</span>
+                    <span className="text-sm font-black text-indigo-400">{odds.home_win ? Number(odds.home_win).toFixed(2) : '-'}</span>
+                  </div>
+                  <div className="p-3 bg-zinc-900/40 border border-zinc-850 rounded-xl text-center">
+                    <span className="block text-[10px] text-zinc-500 font-bold uppercase mb-1">X</span>
+                    <span className="text-sm font-black text-zinc-300">{odds.draw ? Number(odds.draw).toFixed(2) : '-'}</span>
+                  </div>
+                  <div className="p-3 bg-zinc-900/40 border border-zinc-850 rounded-xl text-center">
+                    <span className="block text-[10px] text-zinc-500 font-bold uppercase mb-1">2</span>
+                    <span className="text-sm font-black text-purple-400">{odds.away_win ? Number(odds.away_win).toFixed(2) : '-'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mercado Total de Golos (Mais/Menos) */}
+              <div className="p-4 bg-zinc-950/40 border border-zinc-850/60 rounded-2xl space-y-3">
+                <h4 className="text-[11px] font-black text-zinc-500 uppercase tracking-wider">Golos (Mais / Menos 2.5)</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-3 bg-zinc-900/40 border border-zinc-850 rounded-xl text-center flex justify-between items-center px-4">
+                    <span className="text-[10px] text-zinc-550 font-bold uppercase">Mais 2.5</span>
+                    <span className="text-sm font-black text-indigo-400">{odds.over_25_goals ? Number(odds.over_25_goals).toFixed(2) : '-'}</span>
+                  </div>
+                  <div className="p-3 bg-zinc-900/40 border border-zinc-850 rounded-xl text-center flex justify-between items-center px-4">
+                    <span className="text-[10px] text-zinc-550 font-bold uppercase">Menos 2.5</span>
+                    <span className="text-sm font-black text-zinc-300">{odds.under_25_goals ? Number(odds.under_25_goals).toFixed(2) : '-'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mercado Ambas Marcam */}
+              <div className="p-4 bg-zinc-950/40 border border-zinc-850/60 rounded-2xl space-y-3">
+                <h4 className="text-[11px] font-black text-zinc-500 uppercase tracking-wider">Ambas Equipas Marcam</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-3 bg-zinc-900/40 border border-zinc-850 rounded-xl text-center flex justify-between items-center px-4">
+                    <span className="text-[10px] text-zinc-550 font-bold uppercase">Sim</span>
+                    <span className="text-sm font-black text-emerald-400">{odds.btts_yes ? Number(odds.btts_yes).toFixed(2) : '-'}</span>
+                  </div>
+                  <div className="p-3 bg-zinc-900/40 border border-zinc-850 rounded-xl text-center flex justify-between items-center px-4">
+                    <span className="text-[10px] text-zinc-550 font-bold uppercase">Não</span>
+                    <span className="text-sm font-black text-zinc-400">{odds.btts_no ? Number(odds.btts_no).toFixed(2) : '-'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-zinc-500 text-xs border border-dashed border-zinc-800 rounded-2xl">
+              Nenhuma odd disponível para este evento no momento.
+            </div>
+          )}
+        </section>
+
         {/* DETALHES, PREVISÕES ML E SIMULADOR (Abas Dinâmicas) */}
         <section className="w-full">
           <MatchTabs
@@ -382,6 +466,8 @@ export default async function MatchPage({ params }: MatchPageProps) {
             lineups={lineups}
             standings={standings}
             incidents={incidents}
+            odds={odds}
+            userPoints={userPoints}
           />
         </section>
 
