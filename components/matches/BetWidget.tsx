@@ -267,7 +267,7 @@ export default function BetWidget({
                     disabled={isMatchStarted || isPending}
                     className={getButtonClass('BTTS_NO') + 'flex flex-col items-center justify-center gap-1.5'}
                   >
-                    <span className="text-[10px] uppercase tracking-wider font-black text-zinc-100">Não </span>
+                    <span className="text-[10px] uppercase tracking-wider font-black text-zinc-100">Não</span>
                     <span className={`text-[11px] font-mono ${getOddColorClass('BTTS_NO', oddBttsNo, [oddBttsYes, oddBttsNo])}`}>
                       {oddBttsNo.toFixed(2)}
                     </span>
