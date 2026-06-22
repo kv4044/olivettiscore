@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { FormEvent, useState } from 'react'
 import { AlertCircle, CheckCircle2, Loader2, Lock } from 'lucide-react'
-import { createClient } from '@/utils/supabase/client'
+import { updatePassword } from './actions'
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('')
@@ -27,12 +27,11 @@ export default function ResetPasswordPage() {
     }
 
     setIsPending(true)
-    const supabase = createClient()
-    const { error: updateError } = await supabase.auth.updateUser({ password })
+    const result = await updatePassword(password)
     setIsPending(false)
 
-    if (updateError) {
-      setError('O link de recuperação é inválido ou expirou. Solicita um novo link.')
+    if (result.error) {
+      setError(result.error)
       return
     }
 
