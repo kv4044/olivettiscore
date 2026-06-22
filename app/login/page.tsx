@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useActionState, useEffect } from 'react'
-import { login, signup } from './actions'
+import { useState, useActionState, useEffect, useTransition } from 'react'
+import { forgotPassword, login, signup } from './actions'
 import { Mail, Lock, Loader2, CheckCircle2, AlertCircle, ArrowRight, ChevronDown } from 'lucide-react'
 
 export default function LoginPage() {
@@ -28,6 +28,19 @@ export default function LoginPage() {
   const [maxDate, setMaxDate] = useState('')
   const [isGenderOpen, setIsGenderOpen] = useState(false)
   const [selectedGender, setSelectedGender] = useState('')
+  const [email, setEmail] = useState('')
+  const [isRecoveringPassword, startPasswordRecovery] = useTransition()
+
+  const handleForgotPassword = () => {
+    setLocalError(null)
+    setLocalSuccess(null)
+
+    startPasswordRecovery(async () => {
+      const result = await forgotPassword(email)
+      setLocalError(result?.error ?? null)
+      setLocalSuccess(result?.success ?? null)
+    })
+  }
 
   useEffect(() => {
     setLocalError(null)
@@ -281,6 +294,8 @@ export default function LoginPage() {
                   name="email"
                   type="email"
                   required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
                   placeholder="exemplo@gmail.com"
                   className="w-full pl-10 pr-4 py-3 bg-zinc-950/60 border border-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-zinc-100 placeholder-zinc-600 focus:outline-none transition-all"
                 />
@@ -307,6 +322,16 @@ export default function LoginPage() {
                   className="w-full pl-10 pr-4 py-3 bg-zinc-950/60 border border-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-zinc-100 placeholder-zinc-600 focus:outline-none transition-all"
                 />
               </div>
+              {isLogin && (
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={isRecoveringPassword}
+                  className="w-full py-2.5 px-4 rounded-xl border border-indigo-500/50 bg-indigo-500/10 text-sm font-semibold text-indigo-300 hover:bg-indigo-500/20 hover:border-indigo-400 disabled:opacity-50 transition-all cursor-pointer"
+                >
+                  {isRecoveringPassword ? 'A enviar e-mail...' : 'Recuperar palavra-passe'}
+                </button>
+              )}
               {!isLogin && (
                 <p className="text-xs text-zinc-500 mt-1">
                   A palavra-passe deve conter pelo menos 6 caracteres.

@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 
@@ -121,6 +122,34 @@ export async function signup(prevState: ActionState, formData: FormData): Promis
     redirect('/dashboard')
   } else {
     return { success: 'Conta criada com sucesso! Por favor, verifica a tua caixa de e-mail para confirmar o registo.' }
+  }
+}
+
+export async function forgotPassword(email: string): Promise<ActionState> {
+  const normalizedEmail = email.trim()
+
+  if (!normalizedEmail) {
+    return { error: 'Introduz o teu e-mail para recuperares a palavra-passe.' }
+  }
+
+  const requestHeaders = await headers()
+  const origin = requestHeaders.get('origin')
+
+  if (!origin) {
+    return { error: 'Não foi possível iniciar a recuperação da palavra-passe.' }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+    redirectTo: `${origin}/reset-password`,
+  })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return {
+    success: 'Enviámos-te um e-mail com as instruções para redefinires a palavra-passe.',
   }
 }
 
