@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
-import { rewardIds } from './rewards'
+import { sendRewardRedemptionEmail } from '@/services/email'
+import { rewards } from './rewards'
 
 export type RedeemState = {
   success: boolean
@@ -17,7 +18,9 @@ export async function redeemReward(
   void _previousState
   void _formData
 
-  if (!rewardIds.has(rewardId)) {
+  const reward = rewards.find((item) => item.id === rewardId)
+
+  if (!reward) {
     return { success: false, message: 'O prémio selecionado não é válido.' }
   }
 
@@ -28,7 +31,7 @@ export async function redeemReward(
     return { success: false, message: 'Inicia sessão para resgatar prémios.' }
   }
 
-  const { error } = await supabase.rpc('redeem_point_reward', {
+  const { data, error } = await supabase.rpc('redeem_point_reward', {
     p_reward_id: rewardId,
   })
 
@@ -50,8 +53,28 @@ export async function redeemReward(
   revalidatePath('/loja')
   revalidatePath('/dashboard')
 
+  const rpcResult = Array.isArray(data) ? data[0] : undefined
+  const email = user.email
+    ? await sendRewardRedemptionEmail({
+        to: user.email,
+        firstName: user.user_metadata?.first_name,
+        rewardName: reward.name,
+        pointsSpent: reward.price,
+        remainingPoints: (rpcResult?.remaining_points || 0) / 100,
+        redemptionId: rpcResult?.redemption_id,
+      })
+    : { success: false, error: 'O utilizador não tem um endereço de e-mail.' }
+
+  if (!email.success) {
+    console.error('O resgate foi concluído, mas o e-mail não foi enviado:', email.error)
+    return {
+      success: true,
+      message: 'Prémio resgatado, mas não foi possível enviar o e-mail de confirmação.',
+    }
+  }
+
   return {
     success: true,
-    message: 'Prémio resgatado com sucesso! O pedido ficou registado.',
+    message: 'Prémio resgatado! Enviámos uma confirmação para o teu e-mail.',
   }
 }

@@ -2,6 +2,15 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+Configure o envio de confirmações de resgate através da [Resend](https://resend.com):
+
+```env
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=Olivetti Score <premios@seudominio.pt>
+```
+
+`RESEND_FROM_EMAIL` deve usar um domínio verificado na Resend. Para testes, pode ser omitido para usar o remetente de testes `onboarding@resend.dev`.
+
 First, run the development server:
 
 ```bash
