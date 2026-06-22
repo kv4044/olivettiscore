@@ -455,6 +455,13 @@ export const bzzoiroService = {
   },
 
   /**
+   * Retorna a época atual da liga, incluindo as respetivas datas.
+   */
+  async getLeagueCurrentSeason(leagueId: number): Promise<any> {
+    return fetchBzzoiro<any>(`/leagues/${leagueId}/season/`);
+  },
+
+  /**
    * Retorna as odds de um jogo específico.
    */
   async getEventOdds(eventId: number): Promise<any> {

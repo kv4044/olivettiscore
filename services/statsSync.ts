@@ -28,75 +28,49 @@ export const statsSyncService = {
     for (const league of leagues) {
       console.log(`[StatsSync] A processar liga: "${league.name}" (ID: ${league.id})...`)
       
-      // 2. Obter a classificação da liga para listar as equipas
+      // 2. Obter a classificação quando existir. Competições a eliminar
+      // podem não ter tabela, pelo que as equipas também são obtidas dos jogos.
       let standings = null
       try {
         standings = await bzzoiroService.getLeagueStandings(league.id)
       } catch (err) {
-        console.error(`[StatsSync] Erro ao obter classificações da liga ${league.id}:`, err)
-        continue
+        console.warn(`[StatsSync] Sem classificação para a liga ${league.id}; a usar as equipas dos jogos.`)
       }
 
-      if (!standings) continue
-
-      // Resolver lista de equipas da liga
-      const teamsList: { team_id: number; team_name: string }[] = []
-      if (standings.grouped && standings.groups) {
+      const teamsMap = new Map<number, string>()
+      if (standings?.grouped && standings.groups) {
         Object.entries(standings.groups).forEach(([_, rows]: [string, any]) => {
           rows.forEach((row: any) => {
-            teamsList.push({ team_id: row.team_id, team_name: row.team_name })
+            teamsMap.set(row.team_id, row.team_name)
           })
         })
-      } else if (standings.standings) {
+      } else if (standings?.standings) {
         standings.standings.forEach((row: any) => {
-          teamsList.push({ team_id: row.team_id, team_name: row.team_name })
+          teamsMap.set(row.team_id, row.team_name)
         })
       }
 
-      if (teamsList.length === 0) {
-        console.log(`[StatsSync] Nenhuma equipa encontrada na classificação da liga ${league.id}.`)
-        continue
-      }
-
-      // 3. Buscar os plantéis de todas as equipas para construir o mapa de jogadores (ID -> Nome, Posição)
-      console.log(`[StatsSync] A buscar plantéis para ${teamsList.length} equipas...`)
-      const playerMap = new Map<number, { name: string; position: string; teamId: number; teamName: string }>()
-
-      const squadPromises = teamsList.map(async (t) => {
-        try {
-          const squadData = await bzzoiroService.getTeamSquad(t.team_id)
-          const players = squadData.players || []
-          players.forEach((p: any) => {
-            const playerId = p.player_id || p.id
-            if (playerId) {
-              playerMap.set(playerId, {
-                name: p.name,
-                position: p.position || 'M',
-                teamId: t.team_id,
-                teamName: t.team_name
-              })
-            }
-          })
-        } catch (err) {
-          console.error(`[StatsSync] Erro ao buscar plantel da equipa ${t.team_id}:`, err)
-        }
-      })
-
-      await Promise.all(squadPromises)
-      console.log(`[StatsSync] Mapa de jogadores construído com ${playerMap.size} registos.`)
-
-      // 4. Buscar todos os jogos terminados da liga na época atual
-      // Definimos o início da época como 2025-07-01 e fim como 2026-06-30
+      // 3. Buscar todos os jogos terminados da competição na época atual.
       console.log(`[StatsSync] A obter jogos da liga...`)
       let events: any[] = []
       try {
         const today = new Date().toISOString().split('T')[0]
+        const seasonData = await bzzoiroService.getLeagueCurrentSeason(league.id)
+        const seasonStart = seasonData?.season?.start_date
+
+        if (!seasonStart) {
+          console.error(`[StatsSync] A API não devolveu a data inicial da época da liga ${league.id}.`)
+          continue
+        }
+
         events = await bzzoiroService.getEvents(
           {
             league_id: String(league.id),
-            date_from: '2025-07-01',
+            date_from: seasonStart,
             date_to: today,
-            status: 'FT'
+            // A API usa o estado bruto "finished"; "FT" é apenas o valor
+            // normalizado internamente pelo frontend.
+            status: 'finished'
           },
           { fetchAll: true, enrich: false }
         )
@@ -108,6 +82,40 @@ export const statsSyncService = {
       console.log(`[StatsSync] Encontrados ${events.length} jogos terminados para a época atual.`)
 
       if (events.length === 0) continue
+
+      events.forEach((event) => {
+        if (event.home_team?.id) teamsMap.set(event.home_team.id, event.home_team.name)
+        if (event.away_team?.id) teamsMap.set(event.away_team.id, event.away_team.name)
+      })
+
+      const teamsList = Array.from(teamsMap, ([team_id, team_name]) => ({ team_id, team_name }))
+      if (teamsList.length === 0) continue
+
+      // 4. Buscar os plantéis para construir o mapa ID -> jogador.
+      console.log(`[StatsSync] A buscar plantéis para ${teamsList.length} equipas...`)
+      const playerMap = new Map<number, { name: string; position: string; teamId: number; teamName: string }>()
+
+      await Promise.all(teamsList.map(async (team) => {
+        try {
+          const squadData = await bzzoiroService.getTeamSquad(team.team_id)
+          const players = squadData.players || []
+          players.forEach((player: any) => {
+            const playerId = player.player_id || player.id
+            if (playerId) {
+              playerMap.set(playerId, {
+                name: player.name,
+                position: player.position || 'M',
+                teamId: team.team_id,
+                teamName: team.team_name
+              })
+            }
+          })
+        } catch (err) {
+          console.error(`[StatsSync] Erro ao buscar plantel da equipa ${team.team_id}:`, err)
+        }
+      }))
+
+      console.log(`[StatsSync] Mapa de jogadores construído com ${playerMap.size} registos.`)
 
       // 5. Agregar as estatísticas dos jogadores a partir dos jogos terminados
       // Fazemos pedidos em paralelo controlando a concorrência por lotes

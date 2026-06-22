@@ -16,12 +16,21 @@ import {
   RefreshCw,
   Clock,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  ReceiptText
 } from 'lucide-react'
 import RefreshButton from '@/components/RefreshButton'
 import LeaderboardSection from '@/components/LeaderboardSection'
+import PointTransactions, { PointTransaction } from '@/components/PointTransactions'
+import { rewards } from '@/app/loja/rewards'
 
 export const revalidate = 0 // Forçar renderização dinâmica para sempre mostrar dados atualizados
+
+interface DashboardPageProps {
+  searchParams: Promise<{
+    tab?: string
+  }>
+}
 
 // Helper para mascarar o e-mail no Leaderboard (por privacidade)
 function maskEmail(email: string): string {
@@ -33,7 +42,10 @@ function maskEmail(email: string): string {
   return `${local.substring(0, 3)}***@${domain}`
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const params = await searchParams
+  const activeTab = params.tab === 'transactions' ? 'transactions' : 'profile'
+
   // 1. Verificar Sessão do Utilizador
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -157,6 +169,77 @@ export default async function DashboardPage() {
     })
   )
 
+  // 6. Construir o histórico unificado de movimentos de pontos.
+  const [{ data: transactionPredictions }, { data: rewardRedemptions }] = await Promise.all([
+    supabase
+      .from('predictions')
+      .select('id, match_id, predicted_outcome, is_calculated, points_awarded, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50),
+    supabase
+      .from('reward_redemptions')
+      .select('id, reward_id, points_spent, status, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50),
+  ])
+
+  const betTransactions: PointTransaction[] = (transactionPredictions || []).flatMap((prediction): PointTransaction[] => {
+    if (!prediction.predicted_outcome.includes(':bet=')) {
+      if (!prediction.is_calculated || prediction.points_awarded <= 0) return []
+
+      return [{
+        id: `prediction-winnings-${prediction.id}`,
+        title: `Pontos do prognóstico no jogo #${prediction.match_id}`,
+        detail: 'Prognóstico correto',
+        amount: prediction.points_awarded / 100,
+        date: prediction.created_at,
+        type: 'winnings',
+      }]
+    }
+
+    const betPart = prediction.predicted_outcome
+      .split(':')
+      .find((part: string) => part.startsWith('bet='))
+    const betAmount = Number(betPart?.split('=')[1]) || 0
+    const rows: PointTransaction[] = [{
+      id: `bet-${prediction.id}`,
+      title: `Aposta no jogo #${prediction.match_id}`,
+      detail: prediction.is_calculated ? 'Aposta concluída' : 'Aposta pendente',
+      amount: -betAmount,
+      date: prediction.created_at,
+      type: 'bet',
+    }]
+
+    if (prediction.is_calculated && prediction.points_awarded > 0) {
+      rows.push({
+        id: `winnings-${prediction.id}`,
+        title: `Ganhos da aposta no jogo #${prediction.match_id}`,
+        detail: 'Retorno creditado no saldo',
+        amount: prediction.points_awarded / 100,
+        date: prediction.created_at,
+        type: 'winnings',
+      })
+    }
+
+    return rows
+  })
+
+  const rewardNames = new Map<string, string>(rewards.map((reward) => [reward.id, reward.name]))
+  const redemptionTransactions: PointTransaction[] = (rewardRedemptions || []).map((redemption) => ({
+    id: `reward-${redemption.id}`,
+    title: rewardNames.get(redemption.reward_id) || 'Recompensa resgatada',
+    detail: 'Resgate na Loja de Pontos',
+    amount: -(redemption.points_spent / 100),
+    date: redemption.created_at,
+    type: 'reward',
+    status: redemption.status,
+  }))
+
+  const pointTransactions = [...betTransactions, ...redemptionTransactions]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
   // Formatar data de adesão
   const joinDate = user.created_at 
     ? new Date(user.created_at).toLocaleDateString('pt-PT', {
@@ -205,6 +288,27 @@ export default async function DashboardPage() {
 
       {/* Main Content */}
       <main className="z-10 flex-1 max-w-none w-full px-6 md:px-8 py-8 space-y-8">
+        <nav className="flex w-fit items-center gap-1 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-1" aria-label="Secções do perfil">
+          <Link
+            href="/dashboard"
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${activeTab === 'profile' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/15' : 'text-zinc-500 hover:text-zinc-200'}`}
+          >
+            <User className="h-3.5 w-3.5" />
+            Perfil
+          </Link>
+          <Link
+            href="/dashboard?tab=transactions"
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${activeTab === 'transactions' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/15' : 'text-zinc-500 hover:text-zinc-200'}`}
+          >
+            <ReceiptText className="h-3.5 w-3.5" />
+            Transações de pontos
+          </Link>
+        </nav>
+
+        {activeTab === 'transactions' ? (
+          <PointTransactions transactions={pointTransactions} />
+        ) : (
+          <>
         
         {/* SECÇÃO SUPERIOR: Resumo de Pontos e Perfil */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -381,6 +485,9 @@ export default async function DashboardPage() {
             />
           </div>
         </div>
+
+          </>
+        )}
 
       </main>
 

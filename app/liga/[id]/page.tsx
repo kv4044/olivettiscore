@@ -5,12 +5,46 @@ import { bzzoiroService } from '@/services/bzzoiro'
 import { getFlagUrl } from '@/utils/flags'
 import { ArrowLeft } from 'lucide-react'
 import LeagueTabs from '@/components/LeagueTabs'
+import { statsSyncService } from '@/services/statsSync'
+import type { LeagueStatsSummary, PlayerStats } from '@/utils/statsGenerator'
 
 interface PageProps {
   params: Promise<{ id: string }>
 }
 
 export const revalidate = 60 // Revalidar a cada minuto
+
+const emptyStatsSummary = (): LeagueStatsSummary => ({
+  topGoals: [],
+  topAssists: [],
+  topPasses: [],
+  topYellowCards: [],
+  topRedCards: []
+})
+
+function summarizePlayerStats(dbStats: any[] | null): LeagueStatsSummary {
+  if (!dbStats?.length) return emptyStatsSummary()
+
+  const mappedStats: PlayerStats[] = dbStats.map((stat: any) => ({
+    id: Number(stat.player_id),
+    name: stat.player_name,
+    position: stat.position || 'M',
+    teamName: stat.teams?.name || 'Equipa Desconhecida',
+    goals: stat.goals,
+    assists: stat.assists,
+    passes: stat.passes,
+    yellowCards: stat.yellow_cards,
+    redCards: stat.red_cards
+  }))
+
+  return {
+    topGoals: [...mappedStats].sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name)).slice(0, 10),
+    topAssists: [...mappedStats].sort((a, b) => b.assists - a.assists || a.name.localeCompare(b.name)).slice(0, 10),
+    topPasses: [...mappedStats].sort((a, b) => b.passes - a.passes || a.name.localeCompare(b.name)).slice(0, 10),
+    topYellowCards: [...mappedStats].sort((a, b) => b.yellowCards - a.yellowCards || a.name.localeCompare(b.name)).slice(0, 10),
+    topRedCards: [...mappedStats].sort((a, b) => b.redCards - a.redCards || b.yellowCards - a.yellowCards || a.name.localeCompare(b.name)).slice(0, 10)
+  }
+}
 
 export default async function LeagueDetailsPage({ params }: PageProps) {
   const { id } = await params
@@ -90,43 +124,33 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
     .slice(0, 5)
 
   // 4. Obter as estatísticas reais de jogadores da base de dados (Supabase)
-  let statsSummary = {
-    topGoals: [] as any[],
-    topAssists: [] as any[],
-    topPasses: [] as any[],
-    topYellowCards: [] as any[],
-    topRedCards: [] as any[]
-  }
+  let statsSummary = emptyStatsSummary()
 
   try {
-    const { data: dbStats } = await supabase
+    let { data: dbStats, error: statsError } = await supabase
       .from('player_stats')
       .select('*, teams(name)')
       .eq('league_id', leagueId)
 
-    if (dbStats && dbStats.length > 0) {
-      const mappedStats = dbStats.map((s: any) => ({
-        id: Number(s.player_id),
-        name: s.player_name,
-        position: s.position,
-        teamName: s.teams?.name || 'Equipa Desconhecida',
-        goals: s.goals,
-        assists: s.assists,
-        passes: s.passes,
-        yellowCards: s.yellow_cards,
-        redCards: s.red_cards
-      }))
+    if (statsError) throw statsError
 
-      statsSummary = {
-        topGoals: [...mappedStats].sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name)).slice(0, 10),
-        topAssists: [...mappedStats].sort((a, b) => b.assists - a.assists || a.name.localeCompare(b.name)).slice(0, 10),
-        topPasses: [...mappedStats].sort((a, b) => b.passes - a.passes || a.name.localeCompare(b.name)).slice(0, 10),
-        topYellowCards: [...mappedStats].sort((a, b) => b.yellowCards - a.yellowCards || a.name.localeCompare(b.name)).slice(0, 10),
-        topRedCards: [...mappedStats].sort((a, b) => b.redCards - a.redCards || b.yellowCards - a.yellowCards || a.name.localeCompare(b.name)).slice(0, 10)
-      }
+    // Uma liga ainda não sincronizada deixa a aba vazia. Nesse caso, obtém
+    // os dados reais da Bzzoiro, persiste-os e volta a ler o resumo.
+    if (!dbStats?.length) {
+      await statsSyncService.syncPlayerStats(leagueId)
+
+      const refreshed = await supabase
+        .from('player_stats')
+        .select('*, teams(name)')
+        .eq('league_id', leagueId)
+
+      if (refreshed.error) throw refreshed.error
+      dbStats = refreshed.data
     }
+
+    statsSummary = summarizePlayerStats(dbStats)
   } catch (err) {
-    console.error('Erro ao obter estatísticas de jogadores da base de dados:', err)
+    console.error('Erro ao obter ou sincronizar estatísticas de jogadores:', err)
   }
 
   return (

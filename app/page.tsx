@@ -256,12 +256,16 @@ export default async function Home({ searchParams }: PageProps) {
           <div className="flex items-center gap-4">
             {user ? (
               <>
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                <Link
+                  href="/loja"
+                  title="Abrir loja de pontos"
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500/20 hover:border-indigo-400/40 transition-all"
+                >
                   <Award className="w-4 h-4 text-indigo-400" />
                   <span className="text-xs font-bold text-indigo-300">
                     {userPoints.toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} Pontos
                   </span>
-                </div>
+                </Link>
                 <Link
                   href="/dashboard"
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 hover:text-white transition-all"
