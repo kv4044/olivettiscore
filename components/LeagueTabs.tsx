@@ -8,6 +8,7 @@ import {
   Trophy,
   Calendar,
   Clock,
+  ChevronRight,
   TrendingUp,
   Award,
   Zap,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react'
 
 interface LeagueTabsProps {
+  leagueId: number
   leagueStandings: any
   completedMatches: any[]
   upcomingMatches: any[]
@@ -23,12 +25,14 @@ interface LeagueTabsProps {
 }
 
 export default function LeagueTabs({
+  leagueId,
   leagueStandings,
   completedMatches,
   upcomingMatches,
   statsSummary
 }: LeagueTabsProps) {
   const [activeTab, setActiveTab] = useState<'geral' | 'estatisticas'>('geral')
+  const [activeMatchesTab, setActiveMatchesTab] = useState<'completed' | 'upcoming'>('completed')
 
   // Helper for position abbreviations in Portuguese
   const getPosAbbr = (pos: string) => {
@@ -227,13 +231,38 @@ export default function LeagueTabs({
               
               <h3 className="text-sm font-black uppercase tracking-wider text-zinc-300 flex items-center gap-2 border-b border-zinc-850 pb-3">
                 <Calendar className="w-5 h-5 text-purple-400" />
-                <span>Historial de Jogos</span>
+                <span>Jogos da Competição</span>
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+              <div className="flex flex-wrap gap-2 rounded-2xl border border-zinc-850 bg-zinc-950/30 p-1.5">
+                <button
+                  onClick={() => setActiveMatchesTab('completed')}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-[11px] font-black uppercase tracking-wider transition-all ${
+                    activeMatchesTab === 'completed'
+                      ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
+                      : 'text-zinc-500 border border-transparent hover:text-zinc-300'
+                  }`}
+                >
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span>Últimos Resultados</span>
+                </button>
+                <button
+                  onClick={() => setActiveMatchesTab('upcoming')}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-[11px] font-black uppercase tracking-wider transition-all ${
+                    activeMatchesTab === 'upcoming'
+                      ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
+                      : 'text-zinc-500 border border-transparent hover:text-zinc-300'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Jogos Futuros</span>
+                </button>
+              </div>
+
+              <div className="space-y-4">
                 
                 {/* ÚLTIMOS RESULTADOS */}
-                <div className="space-y-4">
+                <div className={activeMatchesTab === 'completed' ? 'space-y-4' : 'hidden'}>
                   <h4 className="text-xs font-black uppercase tracking-wider text-zinc-500 flex items-center gap-1.5 pl-1">
                     <TrendingUp className="w-3.5 h-3.5 text-zinc-500" />
                     <span>Últimos Resultados</span>
@@ -269,12 +298,19 @@ export default function LeagueTabs({
                           </div>
                         </div>
                       ))}
+                      <Link
+                        href={`/liga/${leagueId}/jogos/ultimos-resultados`}
+                        className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-indigo-300 transition-all hover:border-indigo-400/50 hover:bg-indigo-500/15"
+                      >
+                        <span>Ver todos os resultados</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </Link>
                     </div>
                   )}
                 </div>
 
                 {/* PRÓXIMOS COMPROMISSOS */}
-                <div className="space-y-4">
+                <div className={activeMatchesTab === 'upcoming' ? 'space-y-4' : 'hidden'}>
                   <h4 className="text-xs font-black uppercase tracking-wider text-zinc-500 flex items-center gap-1.5 pl-1">
                     <Clock className="w-3.5 h-3.5 text-zinc-500" />
                     <span>Próximos Jogos</span>
@@ -282,7 +318,7 @@ export default function LeagueTabs({
 
                   {upcomingMatches.length === 0 ? (
                     <div className="p-8 text-center text-zinc-550 border border-zinc-900 rounded-2xl text-xs">
-                      Nenhum jogo agendado.
+                      Não existem futuros jogos.
                     </div>
                   ) : (
                     <div className="space-y-2.5">
@@ -313,6 +349,13 @@ export default function LeagueTabs({
                           </div>
                         </div>
                       ))}
+                      <Link
+                        href={`/liga/${leagueId}/jogos/futuros`}
+                        className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-purple-500/25 bg-purple-500/10 px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-purple-300 transition-all hover:border-purple-400/50 hover:bg-purple-500/15"
+                      >
+                        <span>Ver todos os jogos futuros</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </Link>
                     </div>
                   )}
                 </div>

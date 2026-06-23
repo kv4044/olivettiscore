@@ -6,6 +6,7 @@ import { getLeagueLogoUrl } from '@/utils/leagueLogo'
 import { getTeamsLogos } from '@/services/logoService'
 import LeagueTabs from '@/components/LeagueTabs'
 import { statsSyncService } from '@/services/statsSync'
+import { getLeagueMatches } from '@/utils/leagueMatches'
 import type { LeagueStatsSummary, PlayerStats } from '@/utils/statsGenerator'
 
 interface PageProps {
@@ -128,54 +129,20 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
     console.error('Erro ao obter classificações da liga:', err)
   }
 
-  // 3. Obter jogos recentes e futuros da liga da API Bzzoiro usando duas queries separadas para contornar o limite de 50 eventos da API
-  let events: any[] = []
+  // 3. Obter jogos realizados e futuros da liga na época atual.
+  let completedMatches: any[] = []
+  let upcomingMatches: any[] = []
   try {
-    const today = new Date()
-    const fourteenDaysAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    const fourteenDaysAhead = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    const todayStr = today.toISOString().split('T')[0]
-
-    const [pastEvents, futureEvents] = await Promise.all([
-      bzzoiroService.getEvents({ 
-        league_id: String(leagueId),
-        date_from: fourteenDaysAgo,
-        date_to: todayStr
-      }).catch(() => []),
-      bzzoiroService.getEvents({ 
-        league_id: String(leagueId),
-        date_from: todayStr,
-        date_to: fourteenDaysAhead
-      }).catch(() => [])
+    const [allCompletedMatches, allUpcomingMatches] = await Promise.all([
+      getLeagueMatches(leagueId, 'completed').catch(() => []),
+      getLeagueMatches(leagueId, 'upcoming').catch(() => [])
     ])
-    
-    // Unir os resultados sem duplicados (no caso de jogos de hoje estarem em ambos)
-    const seenIds = new Set<number>()
-    const combined: any[] = []
-    
-    const addEvent = (e: any) => {
-      if (!seenIds.has(e.id)) {
-        seenIds.add(e.id)
-        combined.push(e)
-      }
-    }
-    
-    pastEvents.forEach(addEvent)
-    futureEvents.forEach(addEvent)
-    
-    events = combined
+
+    completedMatches = allCompletedMatches.slice(0, 5)
+    upcomingMatches = allUpcomingMatches.slice(0, 5)
   } catch (err) {
     console.error('Erro ao obter jogos da liga:', err)
-  }  // Filtrar jogos terminados e agendados
-  const completedMatches = events
-    .filter((e: any) => e.status === 'FT')
-    .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5)
-
-  const upcomingMatches = events
-    .filter((e: any) => e.status === 'NS')
-    .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 5)
+  }
 
   // 4. Obter as estatísticas reais de jogadores da base de dados (Supabase)
   let statsSummary = emptyStatsSummary()
@@ -245,6 +212,7 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
         </section>
 
         <LeagueTabs
+          leagueId={leagueId}
           leagueStandings={leagueStandings}
           completedMatches={completedMatches}
           upcomingMatches={upcomingMatches}
