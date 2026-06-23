@@ -1,0 +1,63 @@
+node:internal/modules/cjs/loader:1503
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1500:15)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1116:12)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+  throw err;
+    at Module._load (node:internal/modules/cjs/loader:1285:25)
+  ^
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+Node.js v24.17.0
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+Error: Cannot find module 'C:\Users\david\Desktop\TPSI\1º Ano\Projeto Integrado I\olivettiscore\node_modules\npm\bin\npm-cli.js'
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+node:internal/modules/cjs/loader:1503
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1116:12)
+  ^
+  throw err;
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+    at node:internal/main/run_main_module:33:47 {
+Error: Cannot find module 'C:\Users\david\Desktop\TPSI\1º Ano\Projeto Integrado I\olivettiscore\node_modules\npm\bin\npm-prefix.js'
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+    at Module._load (node:internal/modules/cjs/loader:1285:25)
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1500:15)
+  requireStack: []
+}
+Node.js v24.17.0
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+  code: 'MODULE_NOT_FOUND',
+node:internal/modules/cjs/loader:1503
+  ^
+  throw err;
+Error: Cannot find module 'C:\Users\david\Desktop\TPSI\1º Ano\Projeto Integrado I\olivettiscore\node_modules\npm\bin\npm-cli.js'
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1116:12)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1500:15)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at Module._load (node:internal/modules/cjs/loader:1285:25)
+  code: 'MODULE_NOT_FOUND',
+    at node:internal/main/run_main_module:33:47 {
+  requireStack: []
+}
+Node.js v24.17.0
+? Failed to start server
+Error: listen EACCES: permission denied 127.0.0.1:3000
+  port: 3000
+}
+    at <unknown> (Error: listen EACCES: permission denied 127.0.0.1:3000) {
+  address: '127.0.0.1',
+  code: 'EACCES',
+  errno: -4092,
+  syscall: 'listen',
+? Another next dev server is already running.
+- Local:        http://localhost:3000
+- Dir:          C:\Users\david\Desktop\TPSI\1º Ano\Projeto Integrado I\olivettiscore
+- Log:          .next\dev\logs\next-development.log
+- PID:          7268
+Run taskkill /PID 7268 /F to stop it.

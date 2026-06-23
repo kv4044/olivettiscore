@@ -7,26 +7,30 @@ interface LocalTimeProps {
 }
 
 export default function LocalTime({ utcDateString }: LocalTimeProps) {
-  const [formattedTime, setFormattedTime] = useState('')
+  const [formattedDateTime, setFormattedDateTime] = useState('')
 
   useEffect(() => {
     try {
       const date = new Date(utcDateString)
-      setFormattedTime(
-        date.toLocaleTimeString(undefined, {
-          hour: '2-digit',
-          minute: '2-digit',
-        })
-      )
+      const formattedDate = date.toLocaleDateString(undefined, {
+        day: '2-digit',
+        month: '2-digit',
+      })
+      const formattedTime = date.toLocaleTimeString(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+
+      setFormattedDateTime(`${formattedDate}, ${formattedTime}`)
     } catch (e) {
       console.error('Failed to parse date:', e)
     }
   }, [utcDateString])
 
-  // Retorna "--:--" até a hidratação estar concluída no cliente para evitar erros de renderização
+  // Keep the server/client text stable until the browser timezone is known.
   return (
-    <span className="text-zinc-500 text-xs font-semibold select-none">
-      {formattedTime || '--:--'}
+    <span className="text-zinc-500 text-xs font-semibold select-none whitespace-nowrap">
+      {formattedDateTime || '--/--, --:--'}
     </span>
   )
 }

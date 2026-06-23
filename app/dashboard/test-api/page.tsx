@@ -56,12 +56,21 @@ export default async function TestApiPage({ searchParams }: PageProps) {
           </span>
         )
       default: {
-        // Mostra hora do jogo para jogos agendados
-        const hora = new Date(date).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' })
+        // Mostra data e hora do jogo para jogos agendados
+        const matchDate = new Date(date)
+        const dataHora = `${matchDate.toLocaleDateString('pt-PT', {
+          day: '2-digit',
+          month: '2-digit',
+          timeZone: 'Europe/Lisbon'
+        })}, ${matchDate.toLocaleTimeString('pt-PT', {
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Europe/Lisbon'
+        })}`
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium">
             <Clock className="w-3 h-3" />
-            <span>{hora}</span>
+            <span>{dataHora}</span>
           </span>
         )
       }

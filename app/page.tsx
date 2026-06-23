@@ -552,7 +552,7 @@ export default async function Home({ searchParams }: PageProps) {
                             className="group hover:bg-zinc-900/30 transition-all duration-300 flex items-center justify-between p-4 gap-4"
                           >
                             {/* Favoritar Jogo e Hora/Status */}
-                            <div className="flex items-center gap-3 min-w-[70px]">
+                            <div className="flex items-center gap-3 min-w-[96px]">
                               {user && (
                                 <StarButton
                                   type="match"

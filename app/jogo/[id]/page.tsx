@@ -151,14 +151,9 @@ export default async function MatchPage({ params }: MatchPageProps) {
       )
     }
     // Agendado
-    const dataLabel = new Date(event.date).toLocaleDateString('pt-PT', {
-      day: '2-digit',
-      month: 'short'
-    })
     return (
       <div className="text-zinc-400 text-xs font-semibold flex items-center gap-1.5 bg-zinc-950 border border-zinc-850 px-3 py-1 rounded-full">
         <Calendar className="w-3.5 h-3.5 text-zinc-500" />
-        <span>{dataLabel} · </span>
         <LocalTime utcDateString={event.date} />
       </div>
     )

@@ -3,17 +3,14 @@ import { createClient } from '@/utils/supabase/server'
 import { bzzoiroService } from '@/services/bzzoiro'
 import { getTeamsLogos } from '@/services/logoService'
 import { getFlagUrl } from '@/utils/flags'
-import LocalTime from '@/components/LocalTime'
 import StandingsTable, { getStandingsRows } from '@/components/StandingsTable'
 import StarButton from '@/components/favorites/StarButton'
 import TeamStandingsSelector, { TeamCompetitionOption, TeamSeasonOption } from '@/components/TeamStandingsSelector'
+import TeamMatchesTabs from '@/components/TeamMatchesTabs'
 import { enrichStandingsWithLogos } from '@/utils/standings'
 import { 
   MapPin, 
-  Calendar, 
-  Trophy, 
-  Clock, 
-  TrendingUp
+  Trophy
 } from 'lucide-react'
 
 interface PageProps {
@@ -163,33 +160,12 @@ export default async function TeamDetailsPage({ params, searchParams }: PageProp
   const completedMatches = events
     .filter((e: any) => e.status === 'FT')
     .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 10)
+    .slice(0, 5)
 
   const upcomingMatches = events
     .filter((e: any) => e.status === 'NS')
     .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 10)
-
-  // Helper para verificar o resultado da equipa (Vitória, Empate, Derrota)
-  const getMatchResult = (event: any) => {
-    const isHome = event.home_team.id === teamId
-    const scoreHome = event.score.home
-    const scoreAway = event.score.away
-
-    if (scoreHome === null || scoreAway === null) return null
-
-    if (scoreHome === scoreAway) {
-      return { label: 'E', color: 'bg-zinc-800 text-zinc-400 border border-zinc-700' }
-    }
-    
-    const won = isHome ? scoreHome > scoreAway : scoreAway > scoreHome
-    if (won) {
-      return { label: 'V', color: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-black' }
-    } else {
-      return { label: 'D', color: 'bg-red-500/10 text-red-400 border border-red-500/20 font-black' }
-    }
-  }
-
+    .slice(0, 5)
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-zinc-950 to-black text-zinc-100 flex flex-col font-sans">
       
@@ -350,109 +326,11 @@ export default async function TeamDetailsPage({ params, searchParams }: PageProp
 
           {/* COLUNA DIREITA: Calendário de Jogos (7/12) */}
           <div className="lg:col-span-7 space-y-6">
-            
-            {/* JOGOS CARD */}
-            <div className="backdrop-blur-md bg-zinc-900/20 border border-zinc-800/60 rounded-3xl p-6 shadow-lg space-y-6">
-              
-              <h3 className="text-sm font-black uppercase tracking-wider text-zinc-300 flex items-center gap-2 border-b border-zinc-850 pb-3">
-                <Calendar className="w-5 h-5 text-purple-400" />
-                <span>Historial de Jogos</span>
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                
-                {/* ÚLTIMOS RESULTADOS */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-zinc-500 flex items-center gap-1.5 pl-1">
-                    <TrendingUp className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>Últimos Resultados</span>
-                  </h4>
-                  
-                  {completedMatches.length === 0 ? (
-                    <div className="p-8 text-center text-zinc-550 border border-zinc-900 rounded-2xl text-xs">
-                      Nenhum jogo terminado.
-                    </div>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {completedMatches.map((event: any) => {
-                        const res = getMatchResult(event)
-                        const isHome = event.home_team.id === teamId
-                        
-                        return (
-                          <div 
-                            key={event.id}
-                            className="p-3 bg-zinc-950/30 border border-zinc-900 rounded-xl flex items-center justify-between gap-3 text-xxs font-semibold"
-                          >
-                            <div className="flex-1 space-y-1 truncate">
-                              <p className={`truncate ${isHome ? 'text-zinc-200 font-bold' : 'text-zinc-450'}`}>
-                                {event.home_team.name}
-                              </p>
-                              <p className={`truncate ${!isHome ? 'text-zinc-200 font-bold' : 'text-zinc-450'}`}>
-                                {event.away_team.name}
-                              </p>
-                            </div>
-
-                            {/* Placar e WDL Tag */}
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="font-mono font-black text-xs text-indigo-400 bg-indigo-500/5 px-2 py-1 border border-indigo-950 rounded-lg min-w-[32px] text-center select-none">
-                                {event.score.home}-{event.score.away}
-                              </span>
-                              {res && (
-                                <span className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] ${res.color}`}>
-                                  {res.label}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* PRÓXIMOS COMPROMISSOS */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-zinc-500 flex items-center gap-1.5 pl-1">
-                    <Clock className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>Próximos Jogos</span>
-                  </h4>
-
-                  {upcomingMatches.length === 0 ? (
-                    <div className="p-8 text-center text-zinc-550 border border-zinc-900 rounded-2xl text-xs">
-                      Nenhum jogo agendado.
-                    </div>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {upcomingMatches.map((event: any) => {
-                        const isHome = event.home_team.id === teamId
-                        return (
-                          <div 
-                            key={event.id}
-                            className="p-3 bg-zinc-950/30 border border-zinc-900 rounded-xl flex items-center justify-between gap-3 text-xxs font-semibold"
-                          >
-                            <div className="flex-1 space-y-1 truncate">
-                              <p className={`truncate ${isHome ? 'text-zinc-200 font-bold' : 'text-zinc-450'}`}>
-                                {event.home_team.name}
-                              </p>
-                              <p className={`truncate ${!isHome ? 'text-zinc-200 font-bold' : 'text-zinc-450'}`}>
-                                {event.away_team.name}
-                              </p>
-                            </div>
-
-                            <div className="shrink-0 flex flex-col items-end gap-0.5">
-                              <LocalTime utcDateString={event.date} />
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-
-              </div>
-
-            </div>
-
+            <TeamMatchesTabs
+              teamId={teamId}
+              completedMatches={completedMatches}
+              upcomingMatches={upcomingMatches}
+            />
           </div>
 
         </div>
