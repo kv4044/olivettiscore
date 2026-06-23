@@ -31,6 +31,8 @@ export const revalidate = 10 // Revalidar a página a cada 10 segundos
 // Lista estática de competições populares para a barra lateral
 const POPULAR_LEAGUES = [
   { id: 27, name: 'Mundial', country: 'Internacional', icon: 'GL' },
+  { id: 7, name: 'Champions League', country: 'Europa', icon: 'EU' },
+  { id: 8, name: 'Europa League', country: 'Europa', icon: 'EU' },
   { id: 1, name: 'Premier League', country: 'Inglaterra', icon: 'GB' },
   { id: 2, name: 'Liga Portugal', country: 'Portugal', icon: 'PT' },
   { id: 3, name: 'La Liga', country: 'Espanha', icon: 'ES' },

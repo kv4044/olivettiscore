@@ -1,13 +1,16 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
-import { bzzoiroService } from '@/services/bzzoiro'
+import { bzzoiroService, type BzzoiroEvent } from '@/services/bzzoiro'
 import { getTeamsLogos } from '@/services/logoService'
 import { getFlagUrl } from '@/utils/flags'
 import StandingsTable, { getStandingsRows } from '@/components/StandingsTable'
 import StarButton from '@/components/favorites/StarButton'
 import TeamStandingsSelector, { TeamCompetitionOption, TeamSeasonOption } from '@/components/TeamStandingsSelector'
 import TeamMatchesTabs from '@/components/TeamMatchesTabs'
+import TeamTabs, { type TeamSquadPlayer } from '@/components/TeamTabs'
 import { enrichStandingsWithLogos } from '@/utils/standings'
+import { statsSyncService } from '@/services/statsSync'
+import type { LeagueStatsSummary, PlayerStats } from '@/utils/statsGenerator'
 import { 
   MapPin, 
   Trophy
@@ -24,8 +27,120 @@ function getQueryValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
 }
 
-function getTeamRow(standings: any, teamId: number) {
-  return getStandingsRows(standings).find((row: any) => Number(row.team_id) === teamId)
+function getTeamRow(standings: Parameters<typeof getStandingsRows>[0], teamId: number) {
+  return getStandingsRows(standings).find((row: { team_id?: number | string }) => Number(row.team_id) === teamId)
+}
+
+type RawSquadPlayer = {
+  id?: number
+  player_id?: number
+  name?: string
+  player_name?: string
+  position?: string | null
+  shirt_number?: number | null
+  number?: number | null
+}
+
+type PlayerStatRow = {
+  player_id: number | string
+  player_name?: string | null
+  position?: string | null
+  goals?: number | null
+  assists?: number | null
+  passes?: number | null
+  yellow_cards?: number | null
+  red_cards?: number | null
+}
+
+const emptyStatsSummary = (): LeagueStatsSummary => ({
+  topGoals: [],
+  topAssists: [],
+  topPasses: [],
+  topYellowCards: [],
+  topRedCards: []
+})
+
+function normalizePosition(position: string | null | undefined) {
+  const raw = position?.toUpperCase() || 'M'
+
+  if (raw.startsWith('F') || raw === 'A' || raw === 'AV' || raw === 'FW' || raw === 'ATT') return 'F'
+  if (raw.startsWith('D') || raw === 'DF' || raw === 'DEF') return 'D'
+  if (raw.startsWith('G') || raw === 'GR' || raw === 'GK') return 'G'
+  if (raw.startsWith('M') || raw === 'MC' || raw === 'MID') return 'M'
+
+  return raw
+}
+
+function hasPlayers(value: unknown): value is { players: RawSquadPlayer[] } {
+  return typeof value === 'object'
+    && value !== null
+    && 'players' in value
+    && Array.isArray((value as { players?: unknown }).players)
+}
+
+function mapSquadPlayers(squadData: unknown): TeamSquadPlayer[] {
+  const players: RawSquadPlayer[] = hasPlayers(squadData)
+    ? squadData.players
+    : Array.isArray(squadData)
+      ? squadData
+      : []
+
+  return players
+    .map((player) => ({
+      id: Number(player.player_id || player.id),
+      name: player.name || player.player_name || `Jogador #${player.player_id || player.id}`,
+      position: normalizePosition(player.position),
+      shirtNumber: player.shirt_number || player.number || null
+    }))
+    .filter((player: TeamSquadPlayer) => player.id && player.name)
+    .sort((a: TeamSquadPlayer, b: TeamSquadPlayer) => {
+      const shirtA = a.shirtNumber ?? 999
+      const shirtB = b.shirtNumber ?? 999
+      return shirtA - shirtB || a.name.localeCompare(b.name)
+    })
+}
+
+function summarizeTeamPlayerStats(dbStats: PlayerStatRow[] | null, teamName: string): LeagueStatsSummary {
+  if (!dbStats?.length) return emptyStatsSummary()
+
+  const playerMap = new Map<number, PlayerStats>()
+
+  dbStats.forEach((stat) => {
+    const playerId = Number(stat.player_id)
+    if (!playerId) return
+
+    const existing = playerMap.get(playerId)
+    if (existing) {
+      existing.goals += stat.goals || 0
+      existing.assists += stat.assists || 0
+      existing.passes += stat.passes || 0
+      existing.yellowCards += stat.yellow_cards || 0
+      existing.redCards += stat.red_cards || 0
+      return
+    }
+
+    playerMap.set(playerId, {
+      id: playerId,
+      name: stat.player_name || `Jogador #${playerId}`,
+      position: normalizePosition(stat.position),
+      teamName,
+      goals: stat.goals || 0,
+      assists: stat.assists || 0,
+      passes: stat.passes || 0,
+      yellowCards: stat.yellow_cards || 0,
+      redCards: stat.red_cards || 0
+    })
+  })
+
+  const players = Array.from(playerMap.values())
+
+  return {
+    topGoals: [...players].sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name)).slice(0, 10),
+    topAssists: [...players].sort((a, b) => b.assists - a.assists || a.name.localeCompare(b.name)).slice(0, 10),
+    topPasses: [...players].sort((a, b) => b.passes - a.passes || a.name.localeCompare(b.name)).slice(0, 10),
+    topYellowCards: [...players].sort((a, b) => b.yellowCards - a.yellowCards || a.name.localeCompare(b.name)).slice(0, 10),
+    topRedCards: [...players].sort((a, b) => b.redCards - a.redCards || b.yellowCards - a.yellowCards || a.name.localeCompare(b.name)).slice(0, 10)
+  }
 }
 
 export default async function TeamDetailsPage({ params, searchParams }: PageProps) {
@@ -85,7 +200,7 @@ export default async function TeamDetailsPage({ params, searchParams }: PageProp
   }
 
   // 4. Procurar jogos envolvendo a equipa
-  let events: any[] = []
+  let events: BzzoiroEvent[] = []
   try {
     events = await bzzoiroService.getEvents({ team_id: String(teamId) }, { fetchAll: true })
   } catch (err) {
@@ -94,14 +209,12 @@ export default async function TeamDetailsPage({ params, searchParams }: PageProp
 
   // 5. Obter classificação da liga
   let leagueStandings = null
-  let leagueName = ''
-  let leagueId = null
+  let leagueId: number | null = null
   
   if (events && events.length > 0) {
     // Tenta encontrar a liga ativa correspondente
     const firstEvent = events[0]
     leagueId = firstEvent.league.id
-    leagueName = firstEvent.league.name
     try {
       leagueStandings = await bzzoiroService.getLeagueStandings(leagueId)
     } catch (err) {
@@ -110,7 +223,7 @@ export default async function TeamDetailsPage({ params, searchParams }: PageProp
   }
 
   const competitionsMap = new Map<number, TeamCompetitionOption>()
-  events.forEach((event: any) => {
+  events.forEach((event) => {
     if (event.league?.id) {
       competitionsMap.set(event.league.id, {
         id: event.league.id,
@@ -156,15 +269,51 @@ export default async function TeamDetailsPage({ params, searchParams }: PageProp
 
   const selectedTeamStanding = getTeamRow(leagueStandings, teamId)
 
+  let squad: TeamSquadPlayer[] = []
+  try {
+    squad = mapSquadPlayers(await bzzoiroService.getTeamSquad(teamId))
+  } catch (err) {
+    console.error('Erro ao obter plantel da equipa:', err)
+  }
+
+  let teamStatsSummary = emptyStatsSummary()
+  try {
+    const { data: initialStats, error: statsError } = await supabase
+      .from('player_stats')
+      .select('*')
+      .eq('team_id', teamId)
+
+    if (statsError) throw statsError
+    let dbStats = initialStats as PlayerStatRow[] | null
+
+    if (!dbStats?.length && competitions.length > 0) {
+      for (const competition of competitions) {
+        await statsSyncService.syncPlayerStats(competition.id)
+      }
+
+      const refreshed = await supabase
+        .from('player_stats')
+        .select('*')
+        .eq('team_id', teamId)
+
+      if (refreshed.error) throw refreshed.error
+      dbStats = refreshed.data as PlayerStatRow[] | null
+    }
+
+    teamStatsSummary = summarizeTeamPlayerStats(dbStats, teamDetails.name)
+  } catch (err) {
+    console.error('Erro ao obter ou sincronizar estatisticas da equipa:', err)
+  }
+
   // Filtros de jogos terminados e agendados
   const completedMatches = events
-    .filter((e: any) => e.status === 'FT')
-    .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .filter((event) => event.status === 'FT')
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5)
 
   const upcomingMatches = events
-    .filter((e: any) => e.status === 'NS')
-    .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .filter((event) => event.status === 'NS')
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 5)
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-zinc-950 to-black text-zinc-100 flex flex-col font-sans">
@@ -228,8 +377,12 @@ export default async function TeamDetailsPage({ params, searchParams }: PageProp
           </div>
         </section>
 
-        {/* DETAILS GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <TeamTabs
+          squad={squad}
+          statsSummary={teamStatsSummary}
+        >
+          {/* DETAILS GRID */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* COLUNA ESQUERDA: Estádio e Classificações (5/12) */}
           <div className="lg:col-span-5 space-y-6">
@@ -325,15 +478,16 @@ export default async function TeamDetailsPage({ params, searchParams }: PageProp
           </div>
 
           {/* COLUNA DIREITA: Calendário de Jogos (7/12) */}
-          <div className="lg:col-span-7 space-y-6">
-            <TeamMatchesTabs
-              teamId={teamId}
-              completedMatches={completedMatches}
-              upcomingMatches={upcomingMatches}
-            />
-          </div>
+            <div className="lg:col-span-7 space-y-6">
+              <TeamMatchesTabs
+                teamId={teamId}
+                completedMatches={completedMatches}
+                upcomingMatches={upcomingMatches}
+              />
+            </div>
 
-        </div>
+          </div>
+        </TeamTabs>
 
       </main>
 
