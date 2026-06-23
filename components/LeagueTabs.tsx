@@ -125,10 +125,17 @@ export default function LeagueTabs({
                                     <td className="py-2 px-3 text-center font-bold">
                                       {row.position}
                                     </td>
-                                    <td className="py-2 px-2 truncate max-w-[150px] font-bold">
-                                      <Link href={`/equipa/${row.team_id}`} className="hover:text-indigo-400 hover:underline">
-                                        {row.team_name}
-                                      </Link>
+                                    <td className="py-2 px-2 max-w-[150px] font-bold">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <span className="w-4 h-4 shrink-0 flex items-center justify-center">
+                                          {row.team_logo && row.team_logo !== 'no_logo' ? (
+                                            <img src={row.team_logo} alt="" className="w-full h-full object-contain" />
+                                          ) : null}
+                                        </span>
+                                        <Link href={`/equipa/${row.team_id}`} className="truncate hover:text-indigo-400 hover:underline">
+                                          {row.team_name}
+                                        </Link>
+                                      </div>
                                     </td>
                                     <td className="py-2 px-2 text-center font-medium">
                                       {row.played}
@@ -169,10 +176,17 @@ export default function LeagueTabs({
                               <td className="py-2.5 px-3 text-center font-bold">
                                 {row.position}
                               </td>
-                              <td className="py-2.5 px-2 truncate max-w-[150px] font-bold">
-                                <Link href={`/equipa/${row.team_id}`} className="hover:text-indigo-400 hover:underline">
-                                  {row.team_name}
-                                </Link>
+                              <td className="py-2.5 px-2 max-w-[150px] font-bold">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="w-4 h-4 shrink-0 flex items-center justify-center">
+                                    {row.team_logo && row.team_logo !== 'no_logo' ? (
+                                      <img src={row.team_logo} alt="" className="w-full h-full object-contain" />
+                                    ) : null}
+                                  </span>
+                                  <Link href={`/equipa/${row.team_id}`} className="truncate hover:text-indigo-400 hover:underline">
+                                    {row.team_name}
+                                  </Link>
+                                </div>
                               </td>
                               <td className="py-2.5 px-2 text-center font-medium">
                                 {row.played}

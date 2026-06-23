@@ -1,4 +1,4 @@
-import { getTeamsLogos, getLeaguesLogos, getLeaguesDetails } from './logoService'
+import { getTeamsLogos, getLeaguesDetails } from './logoService'
 
 // ─── Interfaces do Frontend (o que o UI espera) ────────────────────────────
 

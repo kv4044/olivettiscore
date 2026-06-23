@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { bzzoiroService } from '@/services/bzzoiro'
@@ -7,14 +6,10 @@ import { getFlagUrl } from '@/utils/flags'
 import LocalTime from '@/components/LocalTime'
 import StarButton from '@/components/favorites/StarButton'
 import { 
-  ArrowLeft, 
   MapPin, 
-  Users, 
   Calendar, 
   Trophy, 
-  Shield, 
   Clock, 
-  ChevronRight,
   TrendingUp
 } from 'lucide-react'
 
@@ -141,28 +136,6 @@ export default async function TeamDetailsPage({ params }: PageProps) {
       {/* Background glowing shapes */}
       <div className="absolute top-0 left-1/4 -translate-x-1/2 w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 translate-x-1/2 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
-
-      {/* Header/Navbar */}
-      <header className="z-50 border-b border-zinc-900/60 bg-zinc-950/70 backdrop-blur-md sticky top-0">
-        <div className="max-w-none px-6 md:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group shrink-0">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl overflow-hidden shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-all bg-zinc-900">
-              <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
-            </div>
-            <span className="font-extrabold text-lg bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400 hidden sm:inline">
-              Olivetti Score
-            </span>
-          </Link>
-
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 transition-all"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Voltar ao início</span>
-          </Link>
-        </div>
-      </header>
 
       {/* Main Container */}
       <main className="z-10 flex-1 max-w-none w-full px-6 md:px-8 py-8 space-y-6">

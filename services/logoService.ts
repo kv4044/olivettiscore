@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/utils/supabase/admin'
+import { getLeagueLogoUrl } from '@/utils/leagueLogo'
 
 const THESPORTSDB_BASE_URL = 'https://www.thesportsdb.com/api/v1/json'
 
@@ -306,9 +307,11 @@ export async function getLeaguesLogos(leagues: { id: number; name: string }[]): 
   const details = await getLeaguesDetails(leagues)
   const logoMap: Record<number, string> = {}
   Object.entries(details).forEach(([id, detail]) => {
-    if (detail.logoUrl) {
-      logoMap[Number(id)] = detail.logoUrl
-    }
+    logoMap[Number(id)] = detail.logoUrl || getLeagueLogoUrl({
+      id: Number(id),
+      name: detail.name || `Liga #${id}`,
+      country: detail.country
+    })
   })
   return logoMap
 }
@@ -409,7 +412,7 @@ export async function getLeaguesDetails(leagues: { id: number; name: string }[])
     })
     
     detailsMap[league.id] = {
-      logoUrl: (logoUrl && logoUrl !== 'no_logo') ? logoUrl : undefined,
+      logoUrl: getLeagueLogoUrl({ id: league.id, name, country, logoUrl }),
       name: name,
       country: country
     }

@@ -14,14 +14,13 @@ import {
   Play, 
   CheckCircle2, 
   Calendar,
-  AlertCircle,
-  TrendingUp
+  AlertCircle
 } from 'lucide-react'
 
 interface MatchPageProps {
   params: Promise<{ id: string }>;
 }
-import { getFlagUrl } from '@/utils/flags'
+import { getLeagueLogoUrl } from '@/utils/leagueLogo'
 
 export const revalidate = 10 // Revalidar a página a cada 10 segundos para score live
 
@@ -147,11 +146,6 @@ export default async function MatchPage({ params }: MatchPageProps) {
       )
     }
     // Agendado
-    const hora = new Date(event.date).toLocaleTimeString('pt-PT', { 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      timeZone: 'Europe/Lisbon' 
-    })
     const dataLabel = new Date(event.date).toLocaleDateString('pt-PT', {
       day: '2-digit',
       month: 'short'
@@ -180,7 +174,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[400px] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Mini-Header de navegação */}
-      <header className="z-50 border-b border-zinc-900 bg-zinc-950/40 backdrop-blur-md sticky top-0">
+      <header className="z-40 border-b border-zinc-900 bg-zinc-950/40 backdrop-blur-md sticky top-16">
         <div className="max-w-none px-6 md:px-8 h-16 flex items-center justify-between">
           <Link
             href="/"
@@ -216,15 +210,11 @@ export default async function MatchPage({ params }: MatchPageProps) {
           <div className="flex flex-col items-center gap-3 text-center mb-6 border-b border-zinc-850 pb-4">
             <Link href={`/liga/${event.league.id}`} className="hover:opacity-85 transition-opacity">
               <span className="inline-flex items-center gap-1.5 text-[10px] uppercase font-black tracking-widest text-indigo-400 bg-indigo-500/5 px-2.5 py-1 rounded border border-indigo-950/50">
-                {event.league.logo ? (
-                  <img src={event.league.logo} alt="" className="w-3.5 h-3.5 object-contain shrink-0" />
-                ) : getFlagUrl(event.league.country) ? (
-                  <img 
-                    src={getFlagUrl(event.league.country)!} 
-                    alt="" 
-                    className="w-3.5 h-2.5 object-cover rounded-sm shrink-0"
-                  />
-                ) : null}
+                <img
+                  src={getLeagueLogoUrl({ id: event.league.id, name: event.league.name, country: event.league.country, logoUrl: event.league.logo })}
+                  alt=""
+                  className="w-3.5 h-3.5 object-contain shrink-0"
+                />
                 <span>{event.league.name} {event.league.country ? `· ${event.league.country}` : ''}</span>
               </span>
             </Link>

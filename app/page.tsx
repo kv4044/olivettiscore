@@ -4,24 +4,18 @@ import { bzzoiroService, BzzoiroEvent, BzzoiroLeague } from '@/services/bzzoiro'
 import { favoritesService, UserFavorites } from '@/services/favorites'
 import { getLeaguesLogos } from '@/services/logoService'
 import StarButton from '@/components/favorites/StarButton'
-import SearchHeader from '@/components/SearchHeader'
 import LocalTime from '@/components/LocalTime'
 import LiveRefresher from '@/components/LiveRefresher'
-import { logout } from './login/actions'
 import { 
   Calendar as CalendarIcon, 
   Star, 
-  Award, 
-  LogIn, 
-  LogOut, 
   Sparkles, 
   ArrowRight,
   TrendingUp,
-  ChevronRight,
-  User
+  ChevronRight
 } from 'lucide-react'
 import DateSelector from '@/components/matches/DateSelector'
-import { getFlagUrl } from '@/utils/flags'
+import { getLeagueLogoUrl } from '@/utils/leagueLogo'
 
 interface PageProps {
   searchParams: Promise<{
@@ -64,17 +58,11 @@ export default async function Home({ searchParams }: PageProps) {
     POPULAR_LEAGUES.map(l => ({ id: l.id, name: l.name }))
   )
 
-  let userPoints = 0
   let favorites: UserFavorites = { leagues: [], teams: [], matches: [] }
   let favoriteTeamsList: Array<{ id: number; name: string; logo_url?: string }> = []
 
   if (user) {
-    const [profileRes, favRes] = await Promise.all([
-      supabase.from('profiles').select('points').eq('id', user.id).maybeSingle(),
-      favoritesService.getUserFavorites()
-    ])
-    userPoints = (profileRes.data?.points || 0) / 100
-    favorites = favRes
+    favorites = await favoritesService.getUserFavorites()
 
     if (favorites.teams.length > 0) {
       const { data: teamsData } = await supabase
@@ -237,65 +225,6 @@ export default async function Home({ searchParams }: PageProps) {
       <div className="absolute top-0 left-1/4 -translate-x-1/2 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 translate-x-1/2 w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Header/Navbar */}
-      <header className="z-50 border-b border-zinc-800/60 bg-zinc-950/70 backdrop-blur-md sticky top-0">
-        <div className="max-w-none px-6 md:px-8 h-16 flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-3 group shrink-0">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl overflow-hidden shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-all bg-zinc-900">
-              <img src="/logo.png" alt="Olivetti Score Logo" className="w-full h-full object-cover" />
-            </div>
-            <span className="font-extrabold text-lg bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400 hidden sm:inline">
-              Olivetti Score
-            </span>
-          </Link>
-
-          {/* Barra de Pesquisa Centralizada */}
-          <SearchHeader />
-
-          {/* User Session Info / CTA */}
-          <div className="flex items-center gap-4">
-            {user ? (
-              <>
-                <Link
-                  href="/loja"
-                  title="Abrir loja de pontos"
-                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500/20 hover:border-indigo-400/40 transition-all"
-                >
-                  <Award className="w-4 h-4 text-indigo-400" />
-                  <span className="text-xs font-bold text-indigo-300">
-                    {userPoints.toLocaleString('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} Pontos
-                  </span>
-                </Link>
-                <Link
-                  href="/dashboard"
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 hover:text-white transition-all"
-                >
-                  <User className="w-3.5 h-3.5" />
-                  <span>Perfil</span>
-                </Link>
-                <form action={logout}>
-                  <button
-                    type="submit"
-                    className="flex items-center justify-center w-9 h-9 rounded-xl border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-red-400 hover:border-red-950/50 hover:bg-red-950/10 transition-all cursor-pointer"
-                    title="Sair"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
-                </form>
-              </>
-            ) : (
-              <Link
-                href="/login"
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/15 hover:opacity-95 hover:scale-[1.02] active:scale-95 transition-all"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>Entrar / Registar</span>
-              </Link>
-            )}
-          </div>
-        </div>
-      </header>
-
       {/* Main App Container */}
       <main className="z-10 flex-1 max-w-none w-full px-6 md:px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
@@ -354,10 +283,8 @@ export default async function Home({ searchParams }: PageProps) {
                       <div className="flex items-center gap-2">
                         {popularLeaguesWithLogos[league.id] ? (
                           <img src={popularLeaguesWithLogos[league.id]} alt="" className="w-4 h-4 object-contain shrink-0" />
-                        ) : getFlagUrl(league.country) ? (
-                          <img src={getFlagUrl(league.country)!} alt="" className="w-4 h-2.5 object-cover rounded-sm shrink-0" />
                         ) : (
-                          <span className="font-mono text-zinc-650 text-xxs font-bold">L#{league.id}</span>
+                          <img src={getLeagueLogoUrl(league)} alt="" className="w-4 h-4 object-contain shrink-0" />
                         )}
                         <span>{league.name}</span>
                       </div>
@@ -430,10 +357,8 @@ export default async function Home({ searchParams }: PageProps) {
                     >
                       {popularLeaguesWithLogos[league.id] ? (
                         <img src={popularLeaguesWithLogos[league.id]} alt="" className="w-4 h-4 object-contain shrink-0" />
-                      ) : getFlagUrl(league.country) ? (
-                        <img src={getFlagUrl(league.country)!} alt="" className="w-4 h-2.5 object-cover rounded-sm shrink-0" />
                       ) : (
-                        <span className="text-zinc-550 text-xxs font-mono">{league.icon}</span>
+                        <img src={getLeagueLogoUrl(league)} alt="" className="w-4 h-4 object-contain shrink-0" />
                       )}
                       <span className="truncate">{league.name}</span>
                     </Link>
@@ -591,21 +516,9 @@ export default async function Home({ searchParams }: PageProps) {
                     {/* Cabeçalho da Liga */}
                     <div className="bg-zinc-900/50 border-b border-zinc-850 px-4 py-3 flex items-center justify-between">
                       <Link href={`/liga/${league.id}`} className="group/league-link flex items-center gap-3 hover:opacity-85 transition-opacity">
-                        {league.logo ? (
-                          <div className="flex items-center justify-center w-6 h-6 rounded bg-zinc-950 overflow-hidden text-xxs font-mono font-bold text-zinc-500 shrink-0">
-                            <img src={league.logo} alt="" className="w-full h-full object-contain" />
-                          </div>
-                        ) : getFlagUrl(league.country) ? (
-                          <img 
-                            src={getFlagUrl(league.country)!} 
-                            alt={league.country} 
-                            className="w-5 h-3.5 object-cover rounded-sm shadow-sm"
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center w-6 h-6 rounded bg-zinc-950 text-xxs font-mono font-bold text-zinc-500 shrink-0">
-                            {league.country?.substring(0, 2).toUpperCase() || 'L'}
-                          </div>
-                        )}
+                        <div className="flex items-center justify-center w-6 h-6 rounded bg-zinc-950 overflow-hidden text-xxs font-mono font-bold text-zinc-500 shrink-0">
+                          <img src={getLeagueLogoUrl({ id: league.id, name: league.name, country: league.country, logoUrl: league.logo })} alt="" className="w-full h-full object-contain" />
+                        </div>
                         <div className="flex flex-col">
                           <h3 className="font-extrabold text-sm text-zinc-200 group-hover/league-link:text-indigo-400 transition-colors">
                             {league.name}

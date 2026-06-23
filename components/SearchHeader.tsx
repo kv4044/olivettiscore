@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { 
+import {
   Search, 
   X, 
   Users, 
@@ -16,7 +16,7 @@ import {
   Sparkles,
   Award
 } from 'lucide-react'
-import { getFlagUrl } from '@/utils/flags'
+import { getLeagueLogoUrl } from '@/utils/leagueLogo'
 
 interface LeagueResult {
   id: number
@@ -388,17 +388,13 @@ export default function SearchHeader() {
                           className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/20 border border-zinc-850 hover:bg-zinc-800/40 hover:border-zinc-850 transition-all cursor-pointer group"
                         >
                           <div className="flex items-center gap-3">
-                            {getFlagUrl(league.country) ? (
-                              <img 
-                                src={getFlagUrl(league.country)!} 
-                                alt={league.country} 
-                                className="w-7 h-5 object-cover rounded-sm shadow-sm"
+                            <div className="w-7 h-7 rounded-lg bg-zinc-950 border border-zinc-850 flex items-center justify-center overflow-hidden shrink-0 shadow-inner p-0.5">
+                              <img
+                                src={getLeagueLogoUrl({ id: league.id, name: league.name, country: league.country, logoUrl: league.logo_url })}
+                                alt=""
+                                className="w-full h-full object-contain"
                               />
-                            ) : (
-                              <div className="w-7 h-7 rounded-lg bg-zinc-950 flex items-center justify-center text-xxs font-mono font-bold text-zinc-500">
-                                {league.country?.substring(0, 2).toUpperCase() || 'L'}
-                              </div>
-                            )}
+                            </div>
                             <div>
                               <p className="text-xs font-bold text-zinc-200 group-hover:text-white">{league.name}</p>
                               {league.country && <p className="text-[9px] text-zinc-500 font-semibold mt-0.5">{league.country}</p>}

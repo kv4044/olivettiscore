@@ -1,9 +1,9 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { bzzoiroService } from '@/services/bzzoiro'
 import { getFlagUrl } from '@/utils/flags'
-import { ArrowLeft } from 'lucide-react'
+import { getLeagueLogoUrl } from '@/utils/leagueLogo'
+import { getTeamsLogos } from '@/services/logoService'
 import LeagueTabs from '@/components/LeagueTabs'
 import { statsSyncService } from '@/services/statsSync'
 import type { LeagueStatsSummary, PlayerStats } from '@/utils/statsGenerator'
@@ -46,6 +46,53 @@ function summarizePlayerStats(dbStats: any[] | null): LeagueStatsSummary {
   }
 }
 
+async function enrichStandingsWithLogos(standings: any) {
+  if (!standings) return standings
+
+  const rows: any[] = standings.grouped && standings.groups
+    ? Object.values(standings.groups).flatMap((groupRows: any) => Array.isArray(groupRows) ? groupRows : [])
+    : Array.isArray(standings.standings)
+      ? standings.standings
+      : []
+
+  const teams = rows
+    .filter((row) => row.team_id && row.team_name)
+    .map((row) => ({ id: Number(row.team_id), name: row.team_name }))
+
+  if (teams.length === 0) return standings
+
+  try {
+    const logoMap = await getTeamsLogos(teams)
+    const addLogo = (row: any) => ({
+      ...row,
+      team_logo: logoMap[Number(row.team_id)]
+    })
+
+    if (standings.grouped && standings.groups) {
+      return {
+        ...standings,
+        groups: Object.fromEntries(
+          Object.entries(standings.groups).map(([groupName, groupRows]: [string, any]) => [
+            groupName,
+            Array.isArray(groupRows) ? groupRows.map(addLogo) : groupRows
+          ])
+        )
+      }
+    }
+
+    if (Array.isArray(standings.standings)) {
+      return {
+        ...standings,
+        standings: standings.standings.map(addLogo)
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao obter logos das equipas da classificação:', err)
+  }
+
+  return standings
+}
+
 export default async function LeagueDetailsPage({ params }: PageProps) {
   const { id } = await params
   const leagueId = Number(id)
@@ -66,10 +113,17 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
     notFound()
   }
 
+  const leagueLogoUrl = getLeagueLogoUrl({
+    id: leagueId,
+    name: leagueDetails.name,
+    country: leagueDetails.country,
+    logoUrl: leagueDetails.logo_url
+  })
+
   // 2. Obter classificação da liga da API Bzzoiro
   let leagueStandings = null
   try {
-    leagueStandings = await bzzoiroService.getLeagueStandings(leagueId)
+    leagueStandings = await enrichStandingsWithLogos(await bzzoiroService.getLeagueStandings(leagueId))
   } catch (err) {
     console.error('Erro ao obter classificações da liga:', err)
   }
@@ -160,28 +214,6 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
       <div className="absolute top-0 left-1/4 -translate-x-1/2 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 translate-x-1/2 w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Header/Navbar */}
-      <header className="z-50 border-b border-zinc-900/60 bg-zinc-950/70 backdrop-blur-md sticky top-0">
-        <div className="max-w-none px-6 md:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group shrink-0">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl overflow-hidden shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-all bg-zinc-900">
-              <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
-            </div>
-            <span className="font-extrabold text-lg bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400 hidden sm:inline">
-              Olivetti Score
-            </span>
-          </Link>
-
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 transition-all"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Voltar ao início</span>
-          </Link>
-        </div>
-      </header>
-
       {/* Main Container */}
       <main className="z-10 flex-1 max-w-none w-full px-6 md:px-8 py-8 space-y-6">
         
@@ -191,15 +223,7 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
           
           {/* Logo da Liga / Bandeira */}
           <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl bg-zinc-950 border border-zinc-850 p-4 md:p-6 flex items-center justify-center overflow-hidden shrink-0 shadow-lg">
-            {leagueDetails.logo_url && leagueDetails.logo_url !== 'no_logo' ? (
-              <img src={leagueDetails.logo_url} alt={`${leagueDetails.name} Logo`} className="w-full h-full object-contain" />
-            ) : getFlagUrl(leagueDetails.country) ? (
-              <img src={getFlagUrl(leagueDetails.country)!} alt={leagueDetails.country} className="w-16 md:w-20 object-contain rounded-md" />
-            ) : (
-              <span className="text-3xl md:text-5xl font-black text-zinc-700">
-                {leagueDetails.name.substring(0, 2).toUpperCase()}
-              </span>
-            )}
+            <img src={leagueLogoUrl} alt={`${leagueDetails.name} Logo`} className="w-full h-full object-contain" />
           </div>
 
           {/* Nome e País */}

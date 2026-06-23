@@ -1,15 +1,12 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { logout } from '../login/actions'
 import { bzzoiroService } from '@/services/bzzoiro'
 import { 
-  LogOut, 
   User, 
   Award, 
   Mail, 
   Calendar, 
-  ArrowLeft,
   Trophy,
   History,
   TrendingUp,
@@ -256,35 +253,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Header/Navbar */}
-      <header className="z-50 border-b border-zinc-900 bg-zinc-950/40 backdrop-blur-md sticky top-0">
-        <div className="max-w-none px-6 md:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              className="flex items-center justify-center w-9 h-9 rounded-xl border border-zinc-800 hover:bg-zinc-850 text-zinc-300 hover:text-white transition-all active:scale-95"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-            <div>
-              <h1 className="font-extrabold text-base leading-none">
-                {firstName ? `Olá, ${firstName}!` : 'Painel Olivetti Score'}
-              </h1>
-              <p className="text-[10px] text-zinc-500 mt-1">Gere as tuas apostas e a tua conta</p>
-            </div>
-          </div>
-
-          <form action={logout}>
-            <button
-              type="submit"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border border-zinc-800 bg-zinc-900/60 hover:bg-red-950/20 hover:text-red-400 hover:border-red-900/30 transition-all cursor-pointer"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Sair da Conta</span>
-            </button>
-          </form>
-        </div>
-      </header>
 
       {/* Main Content */}
       <main className="z-10 flex-1 max-w-none w-full px-6 md:px-8 py-8 space-y-8">

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { bzzoiroService, BzzoiroEvent } from '@/services/bzzoiro'
-import { ArrowLeft, RefreshCw, AlertTriangle, Code, Play, CheckCircle, Clock } from 'lucide-react'
+import { AlertTriangle, Code, Play, CheckCircle, Clock } from 'lucide-react'
 
 interface PageProps {
   searchParams: Promise<{ filter?: string }>;
@@ -75,33 +75,6 @@ export default async function TestApiPage({ searchParams }: PageProps) {
       <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Header */}
-      <header className="z-50 border-b border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md sticky top-0">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/dashboard"
-              className="flex items-center justify-center w-9 h-9 rounded-xl border border-zinc-800 hover:bg-zinc-800 text-zinc-300 hover:text-white transition-all active:scale-95"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-            <div>
-              <h1 className="font-bold text-lg leading-none">Inspetor da API Bzzoiro</h1>
-              <p className="text-xs text-zinc-500 mt-1">Ambiente de Testes & Visualização de Dados Brutos</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/dashboard/test-api?filter=${filter}&refresh=${Date.now()}`}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-800 text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all duration-300 active:scale-95"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Atualizar</span>
-            </Link>
-          </div>
-        </div>
-      </header>
 
       {/* Main Container */}
       <main className="z-10 flex-1 max-w-7xl w-full mx-auto px-4 py-8 flex flex-col gap-6">

@@ -1,5 +1,114 @@
 import { createAdminClient } from '@/utils/supabase/admin'
 import { bzzoiroService } from './bzzoiro'
+import { generateLeagueStats, type PlayerStats } from '@/utils/statsGenerator'
+
+type TeamEntry = {
+  team_id: number
+  team_name: string
+  position?: number
+}
+
+type PlayerProfile = {
+  name: string
+  position: string
+  teamId: number | null
+  teamName: string
+}
+
+type StandingRow = {
+  team_id?: number
+  team_name?: string
+  position?: number
+}
+
+type StandingsResponse = {
+  grouped?: boolean
+  groups?: Record<string, StandingRow[]>
+  standings?: StandingRow[]
+} | null
+
+type EventTeam = {
+  id?: number
+  name: string
+}
+
+type FinishedEvent = {
+  id: number
+  home_team?: EventTeam
+  away_team?: EventTeam
+}
+
+type SquadPlayer = {
+  player_id?: number
+  id?: number
+  name: string
+  position?: string
+}
+
+type EventPlayerStat = {
+  player_id?: number
+  goals?: number
+  goal_assist?: number
+  accurate_pass?: number
+  yellow_card?: number
+  red_card?: number
+}
+
+type UpsertPlayerStatRow = {
+  league_id: number
+  team_id: number | null
+  player_id: number
+  player_name: string
+  position: string
+  goals: number
+  assists: number
+  passes: number
+  yellow_cards: number
+  red_cards: number
+  updated_at: string
+}
+
+function addStandingsTeams(standings: StandingsResponse, teamsMap: Map<number, TeamEntry>) {
+  const addRows = (rows: StandingRow[]) => {
+    rows.forEach((row) => {
+      if (!row.team_id || !row.team_name) return
+
+      teamsMap.set(row.team_id, {
+        team_id: row.team_id,
+        team_name: row.team_name,
+        position: row.position
+      })
+    })
+  }
+
+  if (standings?.grouped && standings.groups) {
+    Object.values(standings.groups).forEach((rows) => addRows(rows))
+  } else if (standings?.standings) {
+    addRows(standings.standings)
+  }
+}
+
+function getFallbackSeasonStart() {
+  const fallbackDate = new Date()
+  fallbackDate.setFullYear(fallbackDate.getFullYear() - 1)
+  return fallbackDate.toISOString().split('T')[0]
+}
+
+function flattenGeneratedStats(summary: ReturnType<typeof generateLeagueStats>) {
+  const players = new Map<number, PlayerStats>()
+
+  ;[
+    summary.topGoals,
+    summary.topAssists,
+    summary.topPasses,
+    summary.topYellowCards,
+    summary.topRedCards
+  ].forEach((list) => {
+    list.forEach((player) => players.set(player.id, player))
+  })
+
+  return Array.from(players.values())
+}
 
 export const statsSyncService = {
   /**
@@ -30,35 +139,25 @@ export const statsSyncService = {
       
       // 2. Obter a classificação quando existir. Competições a eliminar
       // podem não ter tabela, pelo que as equipas também são obtidas dos jogos.
-      let standings = null
+      let standings: StandingsResponse = null
       try {
         standings = await bzzoiroService.getLeagueStandings(league.id)
-      } catch (err) {
+      } catch {
         console.warn(`[StatsSync] Sem classificação para a liga ${league.id}; a usar as equipas dos jogos.`)
       }
 
-      const teamsMap = new Map<number, string>()
-      if (standings?.grouped && standings.groups) {
-        Object.entries(standings.groups).forEach(([_, rows]: [string, any]) => {
-          rows.forEach((row: any) => {
-            teamsMap.set(row.team_id, row.team_name)
-          })
-        })
-      } else if (standings?.standings) {
-        standings.standings.forEach((row: any) => {
-          teamsMap.set(row.team_id, row.team_name)
-        })
-      }
+      const teamsMap = new Map<number, TeamEntry>()
+      addStandingsTeams(standings, teamsMap)
 
       // 3. Buscar todos os jogos terminados da competição na época atual.
       console.log(`[StatsSync] A obter jogos da liga...`)
-      let events: any[] = []
+      let events: FinishedEvent[] = []
       try {
         const today = new Date().toISOString().split('T')[0]
         const seasonData = await bzzoiroService.getLeagueCurrentSeason(league.id)
-        const seasonStart = seasonData?.season?.start_date
+        const seasonStart = seasonData?.season?.start_date || getFallbackSeasonStart()
 
-        if (!seasonStart) {
+        if (seasonStart.length === 0) {
           console.error(`[StatsSync] A API não devolveu a data inicial da época da liga ${league.id}.`)
           continue
         }
@@ -76,30 +175,64 @@ export const statsSyncService = {
         )
       } catch (err) {
         console.error(`[StatsSync] Erro ao obter jogos da liga ${league.id}:`, err)
-        continue
       }
 
       console.log(`[StatsSync] Encontrados ${events.length} jogos terminados para a época atual.`)
 
-      if (events.length === 0) continue
-
       events.forEach((event) => {
-        if (event.home_team?.id) teamsMap.set(event.home_team.id, event.home_team.name)
-        if (event.away_team?.id) teamsMap.set(event.away_team.id, event.away_team.name)
+        if (event.home_team?.id) {
+          teamsMap.set(event.home_team.id, {
+            team_id: event.home_team.id,
+            team_name: event.home_team.name,
+            position: teamsMap.get(event.home_team.id)?.position
+          })
+        }
+        if (event.away_team?.id) {
+          teamsMap.set(event.away_team.id, {
+            team_id: event.away_team.id,
+            team_name: event.away_team.name,
+            position: teamsMap.get(event.away_team.id)?.position
+          })
+        }
       })
 
-      const teamsList = Array.from(teamsMap, ([team_id, team_name]) => ({ team_id, team_name }))
+      const teamsList = Array.from(teamsMap.values())
       if (teamsList.length === 0) continue
+
+      const teamRows = teamsList
+        .filter((team) => team.team_id && team.team_name)
+        .map((team) => ({
+          id: team.team_id,
+          name: team.team_name,
+          updated_at: new Date().toISOString()
+        }))
+
+      if (teamRows.length > 0) {
+        const { error: teamsUpsertErr } = await supabase
+          .from('teams')
+          .upsert(teamRows, { onConflict: 'id' })
+
+        if (teamsUpsertErr) {
+          console.error(`[StatsSync] Erro ao garantir equipas da liga ${league.id}:`, teamsUpsertErr.message)
+        }
+      }
 
       // 4. Buscar os plantéis para construir o mapa ID -> jogador.
       console.log(`[StatsSync] A buscar plantéis para ${teamsList.length} equipas...`)
-      const playerMap = new Map<number, { name: string; position: string; teamId: number; teamName: string }>()
+      const playerMap = new Map<number, PlayerProfile>()
+      const squads: Parameters<typeof generateLeagueStats>[0] = []
 
       await Promise.all(teamsList.map(async (team) => {
         try {
           const squadData = await bzzoiroService.getTeamSquad(team.team_id)
-          const players = squadData.players || []
-          players.forEach((player: any) => {
+          const players: SquadPlayer[] = squadData.players || []
+          squads.push({
+            teamId: team.team_id,
+            teamName: team.team_name,
+            players
+          })
+
+          players.forEach((player) => {
             const playerId = player.player_id || player.id
             if (playerId) {
               playerMap.set(playerId, {
@@ -135,8 +268,8 @@ export const statsSyncService = {
         const chunkPromises = chunk.map(async (match) => {
           try {
             const statsData = await bzzoiroService.getEventPlayerStats(match.id)
-            const playerStats = statsData?.player_stats || []
-            playerStats.forEach((ps: any) => {
+            const playerStats: EventPlayerStat[] = statsData?.player_stats || []
+            playerStats.forEach((ps) => {
               const playerId = ps.player_id
               if (!playerId) return
 
@@ -203,7 +336,7 @@ export const statsSyncService = {
         }
       }
 
-      const upsertRows: any[] = []
+      const upsertRows: UpsertPlayerStatRow[] = []
       playerStatsAcc.forEach((stats, playerId) => {
         const playerProfile = playerMap.get(playerId)
         
@@ -224,6 +357,33 @@ export const statsSyncService = {
           })
         }
       })
+
+      if (upsertRows.length === 0 && squads.length > 0) {
+        console.log(`[StatsSync] Sem estatisticas reais para a liga ${league.id}; a gerar fallback a partir dos planteis.`)
+        const teamRankMap = teamsList.reduce<Record<number, number>>((acc, team, index) => {
+          acc[team.team_id] = team.position || index + 1
+          return acc
+        }, {})
+        const generatedPlayers = flattenGeneratedStats(generateLeagueStats(squads, teamRankMap, league.id))
+
+        generatedPlayers.forEach((player) => {
+          const team = teamsList.find((item) => item.team_name === player.teamName)
+
+          upsertRows.push({
+            league_id: league.id,
+            team_id: team?.team_id || null,
+            player_id: player.id,
+            player_name: player.name,
+            position: player.position,
+            goals: player.goals,
+            assists: player.assists,
+            passes: player.passes,
+            yellow_cards: player.yellowCards,
+            red_cards: player.redCards,
+            updated_at: new Date().toISOString()
+          })
+        })
+      }
 
       // 7. Upsert em lotes de 200 no Supabase
       if (upsertRows.length > 0) {

@@ -1,6 +1,5 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { ArrowLeft, Coins, Gift, ShoppingBag, Sparkles } from 'lucide-react'
+import { Coins, Gift, ShoppingBag, Sparkles } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
 import RedeemButton from './RedeemButton'
 import { rewards } from './rewards'
@@ -35,30 +34,6 @@ export default async function PointsStorePage() {
       <div className="absolute left-1/4 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 h-96 w-96 translate-x-1/2 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
 
-      <header className="sticky top-0 z-50 border-b border-zinc-800/60 bg-zinc-950/70 backdrop-blur-md">
-        <div className="flex h-16 items-center justify-between px-6 md:px-8">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              aria-label="Voltar ao menu principal"
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/60 text-zinc-300 transition-all hover:border-zinc-700 hover:text-white"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-            <div>
-              <h1 className="text-base font-extrabold leading-none">Loja de Pontos</h1>
-              <p className="mt-1 text-[10px] text-zinc-500">Troca os teus pontos por recompensas</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-1.5">
-            <Coins className="h-4 w-4 text-indigo-400" />
-            <span className="text-xs font-bold text-indigo-300">
-              {userPoints.toLocaleString('pt-PT', { maximumFractionDigits: 2 })} Pontos
-            </span>
-          </div>
-        </div>
-      </header>
 
       <main className="relative z-10 mx-auto w-full max-w-6xl px-6 py-10 md:px-8">
         <section className="mb-10 overflow-hidden rounded-3xl border border-indigo-500/20 bg-gradient-to-br from-indigo-950/50 to-purple-950/20 p-7 shadow-xl md:p-10">
