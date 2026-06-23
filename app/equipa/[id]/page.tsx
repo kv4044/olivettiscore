@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
 import { bzzoiroService } from '@/services/bzzoiro'
 import { getTeamsLogos } from '@/services/logoService'
@@ -369,14 +370,17 @@ export default async function TeamDetailsPage({ params, searchParams }: PageProp
                               {row.position}
                             </td>
                             <td className="py-2 px-2 max-w-[120px] font-bold">
-                              <div className="flex items-center gap-2 min-w-0">
+                              <Link
+                                href={`/equipa/${row.team_id}`}
+                                className="flex items-center gap-2 min-w-0 hover:text-indigo-400 hover:underline"
+                              >
                                 <span className="w-4 h-4 shrink-0 flex items-center justify-center">
                                   {row.team_logo && row.team_logo !== 'no_logo' ? (
                                     <img src={row.team_logo} alt="" className="w-full h-full object-contain" />
                                   ) : null}
                                 </span>
                                 <span className="truncate">{row.team_name}</span>
-                              </div>
+                              </Link>
                             </td>
                             <td className="py-2 px-2 text-center font-medium">
                               {row.played}
