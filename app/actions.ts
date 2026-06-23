@@ -7,11 +7,14 @@ import { predictionsService } from '@/services/predictions'
 /**
  * Ação de Servidor para favoritar/desfavoritar uma liga.
  */
-export async function toggleFavoriteLeagueAction(leagueId: number, name: string, country?: string) {
+export async function toggleFavoriteLeagueAction(leagueId: number, name: string, country?: string, sourcePath?: string) {
   try {
     const res = await favoritesService.toggleLeague(leagueId, name, country)
     revalidatePath('/')
-    revalidatePath(`/jogo/${leagueId}`) // Caso influencie
+    revalidatePath(`/liga/${leagueId}`)
+    if (sourcePath?.startsWith(`/liga/${leagueId}`)) {
+      revalidatePath(sourcePath)
+    }
     return { success: true, favorited: res.favorited }
   } catch (error: any) {
     return { success: false, error: error.message || 'Erro ao favoritar liga.' }

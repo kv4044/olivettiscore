@@ -5,6 +5,7 @@ import { getFlagUrl } from '@/utils/flags'
 import { getLeagueLogoUrl } from '@/utils/leagueLogo'
 import { getTeamsLogos } from '@/services/logoService'
 import LeagueTabs from '@/components/LeagueTabs'
+import StarButton from '@/components/favorites/StarButton'
 import { statsSyncService } from '@/services/statsSync'
 import { getLeagueMatches } from '@/utils/leagueMatches'
 import type { LeagueStatsSummary, PlayerStats } from '@/utils/statsGenerator'
@@ -104,6 +105,7 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
 
   // 1. Procurar detalhes da liga na base de dados (Supabase)
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
   const { data: leagueDetails } = await supabase
     .from('leagues')
     .select('id, name, country, logo_url')
@@ -112,6 +114,17 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
 
   if (!leagueDetails) {
     notFound()
+  }
+
+  let isLeagueFav = false
+  if (user) {
+    const { data: favData } = await supabase
+      .from('favorite_leagues')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('league_id', leagueId)
+      .maybeSingle()
+    isLeagueFav = !!favData
   }
 
   const leagueLogoUrl = getLeagueLogoUrl({
@@ -195,9 +208,21 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
 
           {/* Nome e País */}
           <div className="text-center md:text-left space-y-2.5">
-            <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight leading-none">
-              {leagueDetails.name}
-            </h1>
+            <div className="flex items-center justify-center md:justify-start gap-3 flex-wrap">
+              <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight leading-none">
+                {leagueDetails.name}
+              </h1>
+              {user && (
+                <StarButton
+                  type="league"
+                  id={leagueId}
+                  name={leagueDetails.name}
+                  country={leagueDetails.country}
+                  isFavorited={isLeagueFav}
+                  className="bg-zinc-950/60 border border-zinc-850 hover:bg-zinc-900"
+                />
+              )}
+            </div>
             <div className="flex items-center justify-center md:justify-start gap-2 text-xs font-bold text-zinc-400">
               {getFlagUrl(leagueDetails.country) && (
                 <img 

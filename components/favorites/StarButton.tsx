@@ -30,7 +30,7 @@ export default function StarButton({ type, id, name, country, logoUrl, isFavorit
       if (type === 'match') {
         res = await toggleFavoriteMatchAction(id)
       } else if (type === 'league') {
-        res = await toggleFavoriteLeagueAction(id, name, country)
+        res = await toggleFavoriteLeagueAction(id, name, country, pathname)
       } else if (type === 'team') {
         res = await toggleFavoriteTeamAction(id, name, logoUrl, pathname)
       }

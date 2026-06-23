@@ -6,6 +6,7 @@ import { getLeagueMatches } from '@/utils/leagueMatches'
 import { getFlagUrl } from '@/utils/flags'
 import { getLeagueLogoUrl } from '@/utils/leagueLogo'
 import { createClient } from '@/utils/supabase/server'
+import StarButton from '@/components/favorites/StarButton'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -22,6 +23,7 @@ export default async function LeagueCompletedMatchesPage({ params }: PageProps) 
   }
 
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
   const { data: leagueDetails } = await supabase
     .from('leagues')
     .select('id, name, country, logo_url')
@@ -30,6 +32,17 @@ export default async function LeagueCompletedMatchesPage({ params }: PageProps) 
 
   if (!leagueDetails) {
     notFound()
+  }
+
+  let isLeagueFav = false
+  if (user) {
+    const { data: favData } = await supabase
+      .from('favorite_leagues')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('league_id', leagueId)
+      .maybeSingle()
+    isLeagueFav = !!favData
   }
 
   const matches = await getLeagueMatches(leagueId, 'completed').catch(() => [])
@@ -58,6 +71,16 @@ export default async function LeagueCompletedMatchesPage({ params }: PageProps) 
               <div className="mt-2 flex items-center gap-2 text-xs font-bold text-zinc-400">
                 {getFlagUrl(leagueDetails.country) && <img src={getFlagUrl(leagueDetails.country)!} alt="" className="h-2.5 w-4 rounded-sm object-cover" />}
                 <span>{leagueDetails.name}</span>
+                {user && (
+                  <StarButton
+                    type="league"
+                    id={leagueId}
+                    name={leagueDetails.name}
+                    country={leagueDetails.country}
+                    isFavorited={isLeagueFav}
+                    className="bg-zinc-950/60 border border-zinc-850 hover:bg-zinc-900"
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -72,4 +95,3 @@ export default async function LeagueCompletedMatchesPage({ params }: PageProps) 
     </main>
   )
 }
-
