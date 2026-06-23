@@ -105,10 +105,40 @@ export async function GET(request: NextRequest) {
       })
     )
 
+    // 4. Pesquisar Jogadores de Futebol (Estatísticas/Base de Dados)
+    const { data: dbFootballPlayers } = await supabase
+      .from('player_stats')
+      .select('player_id, player_name, position, goals, assists, passes, yellow_cards, red_cards, team_id, teams(name, logo_url)')
+      .ilike('player_name', `%${query}%`)
+      .limit(30)
+
+    const uniqueFootballPlayers = new Map<number, any>()
+    if (dbFootballPlayers) {
+      dbFootballPlayers.forEach((p: any) => {
+        const id = Number(p.player_id)
+        if (!uniqueFootballPlayers.has(id)) {
+          uniqueFootballPlayers.set(id, {
+            id,
+            name: p.player_name,
+            position: p.position,
+            team_name: p.teams?.name || 'Equipa Desconhecida',
+            team_logo: p.teams?.logo_url || null,
+            goals: p.goals,
+            assists: p.assists,
+            passes: p.passes,
+            yellow_cards: p.yellow_cards,
+            red_cards: p.red_cards
+          })
+        }
+      })
+    }
+    const finalFootballPlayers = Array.from(uniqueFootballPlayers.values()).slice(0, 5)
+
     return NextResponse.json({
       leagues: finalLeagues,
       teams: filteredTeams,
       players: resolvedPlayers,
+      footballPlayers: finalFootballPlayers,
     })
   } catch (error: any) {
     console.error('Erro na pesquisa:', error)

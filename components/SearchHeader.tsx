@@ -14,9 +14,11 @@ import {
   Clock, 
   ChevronRight,
   Sparkles,
-  Award
+  Award,
+  Activity
 } from 'lucide-react'
 import { getLeagueLogoUrl } from '@/utils/leagueLogo'
+import { getFlagUrl } from '@/utils/flags'
 
 interface LeagueResult {
   id: number
@@ -40,10 +42,24 @@ interface PlayerResult {
   rank: number
 }
 
+interface FootballPlayerResult {
+  id: number
+  name: string
+  position: string
+  team_name: string
+  team_logo?: string
+  goals: number
+  assists: number
+  passes: number
+  yellow_cards: number
+  red_cards: number
+}
+
 interface SearchResults {
   leagues: LeagueResult[]
   teams: TeamResult[]
   players: PlayerResult[]
+  footballPlayers: FootballPlayerResult[]
 }
 
 interface PlayerDetails {
@@ -76,10 +92,15 @@ export default function SearchHeader() {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [activeTab, setActiveTab] = useState<'all' | 'leagues' | 'teams' | 'players'>('all')
-  const [results, setResults] = useState<SearchResults>({ leagues: [], teams: [], players: [] })
+  const [activeTab, setActiveTab] = useState<'all' | 'leagues' | 'teams' | 'footballPlayers' | 'players'>('all')
+  const [results, setResults] = useState<SearchResults>({ leagues: [], teams: [], players: [], footballPlayers: [] })
   const [isLoading, setIsLoading] = useState(false)
   
+  // Detalhes do jogador de futebol selecionado
+  const [selectedFootballPlayerId, setSelectedFootballPlayerId] = useState<number | null>(null)
+  const [footballPlayerDetails, setFootballPlayerDetails] = useState<any | null>(null)
+  const [isFootballPlayerLoading, setIsFootballPlayerLoading] = useState(false)
+
   // Detalhes do jogador selecionado para o Sub-Modal
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [playerDetails, setPlayerDetails] = useState<PlayerDetails | null>(null)
@@ -126,7 +147,10 @@ export default function SearchHeader() {
         setIsOpen((prev) => !prev)
       }
       if (e.key === 'Escape') {
-        if (selectedPlayerId) {
+        if (selectedFootballPlayerId) {
+          setSelectedFootballPlayerId(null)
+          setFootballPlayerDetails(null)
+        } else if (selectedPlayerId) {
           setSelectedPlayerId(null)
           setPlayerDetails(null)
         } else {
@@ -136,7 +160,7 @@ export default function SearchHeader() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedPlayerId])
+  }, [selectedPlayerId, selectedFootballPlayerId])
 
   // Foca o input de pesquisa quando o painel abre
   useEffect(() => {
@@ -144,16 +168,18 @@ export default function SearchHeader() {
       setTimeout(() => inputRef.current?.focus(), 100)
     } else {
       setQuery('')
-      setResults({ leagues: [], teams: [], players: [] })
+      setResults({ leagues: [], teams: [], players: [], footballPlayers: [] })
       setSelectedPlayerId(null)
       setPlayerDetails(null)
+      setSelectedFootballPlayerId(null)
+      setFootballPlayerDetails(null)
     }
   }, [isOpen])
 
   // 2. Procurar dados via API ao digitar (com debounce simples)
   useEffect(() => {
     if (query.trim().length < 2) {
-      setResults({ leagues: [], teams: [], players: [] })
+      setResults({ leagues: [], teams: [], players: [], footballPlayers: [] })
       setIsLoading(false)
       return
     }
@@ -198,6 +224,28 @@ export default function SearchHeader() {
     fetchPlayerDetails()
   }, [selectedPlayerId])
 
+  // Obter detalhes adicionais de um jogador de futebol selecionado
+  useEffect(() => {
+    if (!selectedFootballPlayerId) return
+
+    const fetchFootballPlayerDetails = async () => {
+      setIsFootballPlayerLoading(true)
+      try {
+        const res = await fetch(`/api/football-players/${selectedFootballPlayerId}`)
+        if (res.ok) {
+          const data = await res.json()
+          setFootballPlayerDetails(data)
+        }
+      } catch (err) {
+        console.error('Erro ao carregar perfil do jogador de futebol:', err)
+      } finally {
+        setIsFootballPlayerLoading(false)
+      }
+    }
+
+    fetchFootballPlayerDetails()
+  }, [selectedFootballPlayerId])
+
   const handleResultClick = (type: 'league' | 'team', id: number) => {
     if (query.trim()) {
       addToHistory(query)
@@ -216,12 +264,14 @@ export default function SearchHeader() {
   const filteredResults = {
     leagues: activeTab === 'all' || activeTab === 'leagues' ? results.leagues : [],
     teams: activeTab === 'all' || activeTab === 'teams' ? results.teams : [],
+    footballPlayers: activeTab === 'all' || activeTab === 'footballPlayers' ? (results.footballPlayers || []) : [],
     players: activeTab === 'all' || activeTab === 'players' ? results.players : [],
   }
 
   const hasAnyResults = 
     filteredResults.leagues.length > 0 || 
     filteredResults.teams.length > 0 || 
+    filteredResults.footballPlayers.length > 0 ||
     filteredResults.players.length > 0
   return (
     <div ref={searchContainerRef} className="relative flex-1 max-w-md mx-4">
@@ -284,7 +334,7 @@ export default function SearchHeader() {
         >
           {/* Abas dos Separadores (Filtro Interno) */}
           <div className="flex border-b border-zinc-800/50 bg-zinc-950 p-1.5 gap-1 shrink-0">
-            {(['all', 'leagues', 'teams', 'players'] as const).map((tab) => (
+            {(['all', 'leagues', 'teams', 'footballPlayers', 'players'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -294,7 +344,7 @@ export default function SearchHeader() {
                     : 'text-zinc-500 hover:text-zinc-300'
                 }`}
               >
-                {tab === 'all' ? 'Tudo' : tab === 'leagues' ? 'Ligas' : tab === 'teams' ? 'Equipas' : 'Jogadores'}
+                {tab === 'all' ? 'Tudo' : tab === 'leagues' ? 'Ligas' : tab === 'teams' ? 'Equipas' : tab === 'footballPlayers' ? 'Jogadores' : 'Utilizadores'}
               </button>
             ))}
           </div>
@@ -443,12 +493,67 @@ export default function SearchHeader() {
                   </div>
                 )}
 
+                {/* Categoria Jogadores de Futebol */}
+                {filteredResults.footballPlayers.length > 0 && (
+                  <div className="space-y-1.5">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 pl-2 flex items-center gap-1.5">
+                      <Award className="w-3 h-3 text-indigo-400" />
+                      <span>Jogadores ({filteredResults.footballPlayers.length})</span>
+                    </h3>
+                    <div className="space-y-1">
+                      {filteredResults.footballPlayers.map((player) => (
+                        <div
+                          key={player.id}
+                          onClick={() => {
+                            if (query.trim()) {
+                              addToHistory(query)
+                            }
+                            setIsOpen(false)
+                            router.push(`/jogador/${player.id}`)
+                          }}
+                          className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/20 border border-zinc-850 hover:bg-indigo-500/5 hover:border-indigo-950 transition-all cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 rounded-lg bg-zinc-950 border border-zinc-850 flex items-center justify-center overflow-hidden shrink-0 shadow-inner p-0.5">
+                              <img
+                                src={`https://sports.bzzoiro.com/img/player/${player.id}/`}
+                                alt={player.name}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'https://sports.bzzoiro.com/img/player/0/'
+                                }}
+                                className="w-full h-full object-cover rounded-md"
+                              />
+                            </div>
+                            <div>
+                              <p className="text-xs font-extrabold text-zinc-200 group-hover:text-indigo-300">
+                                {player.name}
+                              </p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                {player.team_logo && (
+                                  <img src={player.team_logo} alt="" className="w-3 h-3 object-contain" />
+                                )}
+                                <p className="text-[9px] text-zinc-550 font-semibold">
+                                  {player.team_name} · <span className="text-zinc-500 font-mono font-bold uppercase">{player.position}</span>
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-indigo-400/70 group-hover:text-indigo-400 transition-all">
+                            <span>Ver Estatísticas</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Categoria Jogadores */}
                 {filteredResults.players.length > 0 && (
                   <div className="space-y-1.5">
                     <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 pl-2 flex items-center gap-1.5">
                       <Users className="w-3 h-3 text-amber-400" />
-                      <span>Jogadores da Plataforma ({filteredResults.players.length})</span>
+                      <span>Utilizadores da Plataforma ({filteredResults.players.length})</span>
                     </h3>
                     <div className="space-y-1">
                       {filteredResults.players.map((player) => (
@@ -629,6 +734,228 @@ export default function SearchHeader() {
             ) : (
               <div className="py-20 text-center text-red-400 text-xs">
                 Erro ao carregar detalhes públicos. Tenta novamente.
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+      {/* SUB-MODAL: DETALHES DO JOGADOR DE FUTEBOL */}
+      {selectedFootballPlayerId && (
+        <div className="fixed inset-0 z-55 flex items-center justify-center p-4 backdrop-blur-md bg-zinc-950/80 animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-3xl p-6 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh] scrollbar-thin">
+            
+            {/* Cabeçalho */}
+            <div className="flex items-center justify-between border-b border-zinc-850 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/25">
+                  <Award className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-extrabold text-zinc-100">
+                    Ficha do Jogador
+                  </h4>
+                  <p className="text-[10px] text-zinc-500">Dados biográficos e estatísticas da época</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedFootballPlayerId(null)
+                  setFootballPlayerDetails(null)
+                }}
+                className="p-1.5 rounded-lg border border-zinc-800 hover:bg-zinc-850 text-zinc-400 hover:text-white transition-all cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Corpo do Detalhe (Loading ou Resolvido) */}
+            {isFootballPlayerLoading ? (
+              <div className="py-20 text-center space-y-3">
+                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mx-auto" />
+                <p className="text-xs text-zinc-550">A carregar dados do jogador...</p>
+              </div>
+            ) : footballPlayerDetails ? (
+              <div className="space-y-6">
+                
+                {/* Cartão do Perfil do Jogador (Foto + Info principal) */}
+                <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-2xl bg-zinc-950/60 border border-zinc-850/80">
+                  <div className="w-24 h-24 rounded-2xl bg-zinc-900 border border-zinc-800 overflow-hidden flex items-center justify-center p-1 shrink-0 relative">
+                    <img
+                      src={`https://sports.bzzoiro.com/img/player/${footballPlayerDetails.id}/?bg=transparent`}
+                      alt={footballPlayerDetails.name}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://sports.bzzoiro.com/img/player/0/'
+                      }}
+                      className="w-full h-full object-cover"
+                    />
+                    {footballPlayerDetails.jerseyNumber && (
+                      <span className="absolute bottom-1 right-2 bg-indigo-600 text-white font-mono text-[10px] font-black px-1.5 py-0.2 rounded border border-indigo-500 shadow-md">
+                        #{footballPlayerDetails.jerseyNumber}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="text-center sm:text-left space-y-1.5 flex-1 min-w-0">
+                    <h3 className="text-lg font-black text-white leading-tight truncate">
+                      {footballPlayerDetails.name}
+                    </h3>
+                    <div className="text-xs text-zinc-400 font-semibold flex items-center justify-center sm:justify-start gap-1.5">
+                      {footballPlayerDetails.position && (
+                        <span className={`text-[9px] font-black px-1.5 py-0.5 border rounded-md uppercase ${
+                          footballPlayerDetails.position === 'F' ? 'bg-rose-500/10 text-rose-450 border-rose-500/20' :
+                          footballPlayerDetails.position === 'M' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                          footballPlayerDetails.position === 'D' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                          'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        }`}>
+                          {footballPlayerDetails.position}
+                        </span>
+                      )}
+                      {footballPlayerDetails.specificPosition && (
+                        <span className="text-zinc-550 font-bold">({footballPlayerDetails.specificPosition})</span>
+                      )}
+                    </div>
+
+                    {footballPlayerDetails.team && (
+                      <div className="flex items-center justify-center sm:justify-start gap-2 text-xs font-bold text-zinc-300">
+                        {footballPlayerDetails.team.logoUrl && (
+                          <img src={footballPlayerDetails.team.logoUrl} alt="" className="w-4 h-4 object-contain" />
+                        )}
+                        <span>{footballPlayerDetails.team.name}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Dados Pessoais / Detalhes */}
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div className="p-3 rounded-xl bg-zinc-950/30 border border-zinc-850/50">
+                    <span className="text-[9px] text-zinc-550 uppercase font-black">Nacionalidade</span>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      {getFlagUrl(footballPlayerDetails.nationality) && (
+                        <img 
+                          src={getFlagUrl(footballPlayerDetails.nationality) || undefined} 
+                          alt="" 
+                          className="w-4 h-2.5 object-cover rounded-sm"
+                        />
+                      )}
+                      <span className="text-xs font-bold text-zinc-200">{footballPlayerDetails.nationality}</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-zinc-950/30 border border-zinc-850/50">
+                    <span className="text-[9px] text-zinc-550 uppercase font-black">Idade / Nasc.</span>
+                    <div className="text-xs font-bold text-zinc-200 mt-1">
+                      {footballPlayerDetails.dateOfBirth ? (
+                        <>
+                          {new Date().getFullYear() - new Date(footballPlayerDetails.dateOfBirth).getFullYear()} anos 
+                          <span className="text-[10px] text-zinc-500 font-semibold ml-1">({footballPlayerDetails.dateOfBirth})</span>
+                        </>
+                      ) : 'N/A'}
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-zinc-950/30 border border-zinc-850/50">
+                    <span className="text-[9px] text-zinc-550 uppercase font-black">Altura / Pé</span>
+                    <div className="text-xs font-bold text-zinc-200 mt-1">
+                      {footballPlayerDetails.heightCm ? `${footballPlayerDetails.heightCm} cm` : 'N/A'} 
+                      {footballPlayerDetails.preferredFoot && (
+                        <span className="text-zinc-550 font-semibold ml-1">
+                          · {footballPlayerDetails.preferredFoot === 'R' ? 'Direito' : footballPlayerDetails.preferredFoot === 'L' ? 'Esquerdo' : 'Ambos'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-zinc-950/30 border border-zinc-850/50">
+                    <span className="text-[9px] text-zinc-550 uppercase font-black">Valor de Mercado</span>
+                    <div className="text-xs font-black text-indigo-400 mt-1">
+                      {footballPlayerDetails.marketValueEur ? (
+                        new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(footballPlayerDetails.marketValueEur)
+                      ) : 'N/A'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Estatísticas da Época */}
+                <div className="space-y-3">
+                  <h5 className="text-[10px] font-black text-zinc-550 uppercase tracking-widest pl-1 flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Estatísticas na Época</span>
+                  </h5>
+
+                  <div className="grid grid-cols-3 gap-2.5 text-center">
+                    <div className="p-3 bg-zinc-950/50 border border-zinc-850/60 rounded-xl">
+                      <span className="text-[9px] text-zinc-500 font-black uppercase">Golos</span>
+                      <p className="text-lg font-black text-white mt-0.5">{footballPlayerDetails.stats.goals}</p>
+                    </div>
+                    <div className="p-3 bg-zinc-950/50 border border-zinc-850/60 rounded-xl">
+                      <span className="text-[9px] text-zinc-500 font-black uppercase">Assistências</span>
+                      <p className="text-lg font-black text-white mt-0.5">{footballPlayerDetails.stats.assists}</p>
+                    </div>
+                    <div className="p-3 bg-zinc-950/50 border border-zinc-850/60 rounded-xl">
+                      <span className="text-[9px] text-zinc-500 font-black uppercase">Passes</span>
+                      <p className="text-lg font-black text-white mt-0.5">{footballPlayerDetails.stats.passes}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5 text-center mt-2">
+                    <div className="p-2.5 bg-zinc-950/30 border border-zinc-850/50 rounded-xl flex items-center justify-between px-4">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-3.5 bg-amber-400 rounded-sm border border-amber-350" />
+                        <span className="text-[10px] font-bold text-zinc-400">Cartões Amarelos</span>
+                      </div>
+                      <span className="font-mono text-sm font-black text-amber-400">{footballPlayerDetails.stats.yellowCards}</span>
+                    </div>
+
+                    <div className="p-2.5 bg-zinc-950/30 border border-zinc-850/50 rounded-xl flex items-center justify-between px-4">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-3.5 bg-red-500 rounded-sm border border-red-400" />
+                        <span className="text-[10px] font-bold text-zinc-400">Cartões Vermelhos</span>
+                      </div>
+                      <span className="font-mono text-sm font-black text-red-500">{footballPlayerDetails.stats.redCards}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Atributos / Habilidades */}
+                {footballPlayerDetails.attributes && (
+                  <div className="space-y-3">
+                    <h5 className="text-[10px] font-black text-zinc-550 uppercase tracking-widest pl-1">
+                      Habilidades e Atributos
+                    </h5>
+                    <div className="grid grid-cols-2 gap-3 p-4 bg-zinc-950/40 border border-zinc-850/60 rounded-2xl">
+                      {Object.entries(footballPlayerDetails.attributes)
+                        .filter(([key]) => key !== 'position')
+                        .map(([key, value]) => {
+                          const label = key === 'attacking' ? 'Ataque' :
+                                        key === 'defending' ? 'Defesa' :
+                                        key === 'tactical' ? 'Tática' :
+                                        key === 'technical' ? 'Técnica' :
+                                        key === 'creativity' ? 'Criatividade' : key
+                          return (
+                            <div key={key} className="space-y-1">
+                              <div className="flex items-center justify-between text-[10px] font-bold">
+                                <span className="capitalize text-zinc-400">{label}</span>
+                                <span className="text-indigo-400">{String(value)}</span>
+                              </div>
+                              <div className="w-full h-1 bg-zinc-900 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-indigo-500 rounded-full"
+                                  style={{ width: `${Number(value)}%` }}
+                                />
+                              </div>
+                            </div>
+                          )
+                        })}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            ) : (
+              <div className="py-20 text-center text-red-400 text-xs">
+                Erro ao carregar detalhes do jogador de futebol. Tenta novamente.
               </div>
             )}
 
