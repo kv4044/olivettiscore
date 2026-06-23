@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import StandingsTable, { getStandingsRows } from '@/components/StandingsTable'
 import {
   Info,
   BarChart3,
@@ -102,7 +103,7 @@ export default function MatchTabs({
   const hasLineups = homeLineup && awayLineup
 
   // Standings helpers
-  const standingsRows = standings?.standings || []
+  const standingsRows = getStandingsRows(standings)
   const hasStandings = standingsRows.length > 0
 
   // Incidents helpers
@@ -1006,109 +1007,10 @@ export default function MatchTabs({
                   </span>
                 </div>
 
-                {/* Tabela */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-zinc-850 text-zinc-500 uppercase tracking-wider text-[10px]">
-                        <th className="py-2.5 px-3 text-left w-8">#</th>
-                        <th className="py-2.5 px-3 text-left">Equipa</th>
-                        <th className="py-2.5 px-2 text-center">J</th>
-                        <th className="py-2.5 px-2 text-center">V</th>
-                        <th className="py-2.5 px-2 text-center">E</th>
-                        <th className="py-2.5 px-2 text-center">D</th>
-                        <th className="py-2.5 px-2 text-center">GM</th>
-                        <th className="py-2.5 px-2 text-center">GS</th>
-                        <th className="py-2.5 px-2 text-center">DG</th>
-                        <th className="py-2.5 px-3 text-center font-black">
-                          PTS
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {standingsRows.map((row: any) => {
-                        const isHome =
-                          row.team_id === event.home_team.id
-                        const isAway =
-                          row.team_id === event.away_team.id
-                        const isHighlighted = isHome || isAway
-
-                        return (
-                          <tr
-                            key={row.team_id}
-                            className={`border-b border-zinc-900/60 transition-colors ${
-                              isHighlighted
-                                ? 'bg-indigo-500/5 border-l-2 border-l-indigo-500'
-                                : 'hover:bg-zinc-900/20'
-                            }`}
-                          >
-                            <td className="py-2 px-3 font-bold text-zinc-400">
-                              {row.position}
-                            </td>
-                            <td
-                              className={`py-2 px-3 font-bold ${
-                                isHighlighted
-                                  ? 'text-indigo-300'
-                                  : 'text-zinc-200'
-                              }`}
-                            >
-                              <Link
-                                href={`/equipa/${row.team_id}`}
-                                className="flex items-center gap-2 min-w-[150px] hover:text-indigo-400 hover:underline"
-                              >
-                                <span className="w-4 h-4 shrink-0 flex items-center justify-center">
-                                  {row.team_logo && row.team_logo !== 'no_logo' ? (
-                                    <img src={row.team_logo} alt="" className="w-full h-full object-contain" />
-                                  ) : null}
-                                </span>
-                                <span className="truncate">{row.team_name}</span>
-                              </Link>
-                            </td>
-                            <td className="py-2 px-2 text-center text-zinc-400">
-                              {row.played}
-                            </td>
-                            <td className="py-2 px-2 text-center text-zinc-400">
-                              {row.won}
-                            </td>
-                            <td className="py-2 px-2 text-center text-zinc-400">
-                              {row.drawn}
-                            </td>
-                            <td className="py-2 px-2 text-center text-zinc-400">
-                              {row.lost}
-                            </td>
-                            <td className="py-2 px-2 text-center text-zinc-400">
-                              {row.gf}
-                            </td>
-                            <td className="py-2 px-2 text-center text-zinc-400">
-                              {row.ga}
-                            </td>
-                            <td
-                              className={`py-2 px-2 text-center font-bold ${
-                                row.gd > 0
-                                  ? 'text-emerald-400'
-                                  : row.gd < 0
-                                    ? 'text-red-400'
-                                    : 'text-zinc-500'
-                              }`}
-                            >
-                              {row.gd > 0 ? '+' : ''}
-                              {row.gd}
-                            </td>
-                            <td
-                              className={`py-2 px-3 text-center font-black ${
-                                isHighlighted
-                                  ? 'text-indigo-400'
-                                  : 'text-white'
-                              }`}
-                            >
-                              {row.pts}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <StandingsTable
+                  standings={standings}
+                  highlightedTeamIds={[event.home_team.id, event.away_team.id]}
+                />
               </div>
             ) : (
               <div className="backdrop-blur-xl bg-zinc-900/40 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-500">

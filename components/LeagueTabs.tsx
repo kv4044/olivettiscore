@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import LocalTime from '@/components/LocalTime'
+import StandingsTable from '@/components/StandingsTable'
 import { LeagueStatsSummary, PlayerStats } from '@/utils/statsGenerator'
 import {
   Trophy,
@@ -99,123 +100,11 @@ export default function LeagueTabs({
               </h3>
 
               {leagueStandings && (leagueStandings.standings || leagueStandings.groups) ? (
-                <div className="space-y-6 max-h-[600px] overflow-y-auto pr-0.5 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
-                  {leagueStandings.grouped && leagueStandings.groups ? (
-                    Object.entries(leagueStandings.groups)
-                      .sort((a, b) => a[0].localeCompare(b[0]))
-                      .map(([groupName, rows]: [string, any]) => (
-                        <div key={groupName} className="space-y-2">
-                          <div className="bg-indigo-500/10 border border-indigo-950/30 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider text-indigo-400 flex items-center justify-between">
-                            <span>{groupName}</span>
-                            <span className="text-[9px] text-zinc-500 font-normal normal-case">Grupo</span>
-                          </div>
-                          <div className="border border-zinc-850 rounded-2xl overflow-hidden bg-zinc-950/20">
-                            <table className="w-full text-left text-[11px] border-collapse">
-                              <thead>
-                                <tr className="bg-zinc-950 text-zinc-500 font-bold uppercase tracking-wider text-[9px] border-b border-zinc-850">
-                                  <th className="py-2 px-3 text-center w-8">#</th>
-                                  <th className="py-2 px-2">Equipa</th>
-                                  <th className="py-2 px-2 text-center">J</th>
-                                  <th className="py-2 px-2 text-center">Forma</th>
-                                  <th className="py-2 px-3 text-right">Pts</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-zinc-900/50">
-                                {rows.map((row: any) => (
-                                  <tr 
-                                    key={row.team_id}
-                                    className="transition-colors text-zinc-400 hover:bg-zinc-900/20"
-                                  >
-                                    <td className="py-2 px-3 text-center font-bold">
-                                      {row.position}
-                                    </td>
-                                    <td className="py-2 px-2 max-w-[150px] font-bold">
-                                      <Link
-                                        href={`/equipa/${row.team_id}`}
-                                        className="flex items-center gap-2 min-w-0 hover:text-indigo-400 hover:underline"
-                                      >
-                                        <span className="w-4 h-4 shrink-0 flex items-center justify-center">
-                                          {row.team_logo && row.team_logo !== 'no_logo' ? (
-                                            <img src={row.team_logo} alt="" className="w-full h-full object-contain" />
-                                          ) : null}
-                                        </span>
-                                        <span className="truncate">{row.team_name}</span>
-                                      </Link>
-                                    </td>
-                                    <td className="py-2 px-2 text-center font-medium">
-                                      {row.played}
-                                    </td>
-                                    <td className="py-2 px-2 text-center">
-                                      <span className="font-mono text-[9px] tracking-wide text-zinc-500">
-                                        {row.form || '-'}
-                                      </span>
-                                    </td>
-                                    <td className="py-2 px-3 text-right font-black text-zinc-200">
-                                      {row.pts}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      ))
-                  ) : leagueStandings.standings ? (
-                    <div className="border border-zinc-850 rounded-2xl overflow-hidden bg-zinc-950/20">
-                      <table className="w-full text-left text-[11px] border-collapse">
-                        <thead>
-                          <tr className="bg-zinc-950 text-zinc-500 font-bold uppercase tracking-wider text-[9px] border-b border-zinc-850">
-                            <th className="py-2.5 px-3 text-center w-8">#</th>
-                            <th className="py-2.5 px-2">Clube</th>
-                            <th className="py-2.5 px-2 text-center">J</th>
-                            <th className="py-2.5 px-2 text-center">Forma</th>
-                            <th className="py-2.5 px-3 text-right">Pts</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-900/50">
-                          {leagueStandings.standings.map((row: any) => (
-                            <tr 
-                              key={row.team_id}
-                              className="transition-colors text-zinc-400 hover:bg-zinc-900/20"
-                            >
-                              <td className="py-2.5 px-3 text-center font-bold">
-                                {row.position}
-                              </td>
-                              <td className="py-2.5 px-2 max-w-[150px] font-bold">
-                                <Link
-                                  href={`/equipa/${row.team_id}`}
-                                  className="flex items-center gap-2 min-w-0 hover:text-indigo-400 hover:underline"
-                                >
-                                  <span className="w-4 h-4 shrink-0 flex items-center justify-center">
-                                    {row.team_logo && row.team_logo !== 'no_logo' ? (
-                                      <img src={row.team_logo} alt="" className="w-full h-full object-contain" />
-                                    ) : null}
-                                  </span>
-                                  <span className="truncate">{row.team_name}</span>
-                                </Link>
-                              </td>
-                              <td className="py-2.5 px-2 text-center font-medium">
-                                {row.played}
-                              </td>
-                              <td className="py-2.5 px-2 text-center">
-                                <span className="font-mono text-[9px] tracking-wide text-zinc-500">
-                                  {row.form || '-'}
-                                </span>
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-black text-zinc-200">
-                                {row.pts}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="p-4 text-center text-zinc-550 text-xs">
-                      Sem classificação disponível no momento.
-                    </div>
-                  )}
-                </div>
+                <StandingsTable
+                  standings={leagueStandings}
+                  maxHeightClassName="max-h-[600px]"
+                  compact
+                />
               ) : (
                 <div className="p-4 text-center text-zinc-500 text-xs">
                   Sem classificação disponível no momento.

@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
 import { bzzoiroService } from '@/services/bzzoiro'
 import { getTeamsLogos } from '@/services/logoService'
 import { getFlagUrl } from '@/utils/flags'
 import LocalTime from '@/components/LocalTime'
+import StandingsTable, { getStandingsRows } from '@/components/StandingsTable'
 import StarButton from '@/components/favorites/StarButton'
 import TeamStandingsSelector, { TeamCompetitionOption, TeamSeasonOption } from '@/components/TeamStandingsSelector'
 import { enrichStandingsWithLogos } from '@/utils/standings'
@@ -25,16 +25,6 @@ export const revalidate = 60 // Revalidar a cada minuto
 
 function getQueryValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
-}
-
-function getStandingsRows(standings: any): any[] {
-  if (!standings) return []
-
-  if (standings.grouped && standings.groups) {
-    return Object.values(standings.groups).flatMap((rows: any) => Array.isArray(rows) ? rows : [])
-  }
-
-  return Array.isArray(standings.standings) ? standings.standings : []
 }
 
 function getTeamRow(standings: any, teamId: number) {
@@ -329,76 +319,26 @@ export default async function TeamDetailsPage({ params, searchParams }: PageProp
                 <div className="grid grid-cols-3 gap-2 rounded-2xl border border-indigo-500/20 bg-indigo-500/10 p-3 text-center">
                   <div>
                     <p className="text-[9px] font-black uppercase tracking-wider text-indigo-300">Posição</p>
-                    <p className="mt-1 text-lg font-black text-white">#{selectedTeamStanding.position}</p>
+                    <p className="mt-1 text-lg font-black text-white">#{String(selectedTeamStanding.position ?? '-')}</p>
                   </div>
                   <div>
                     <p className="text-[9px] font-black uppercase tracking-wider text-indigo-300">Jogos</p>
-                    <p className="mt-1 text-lg font-black text-white">{selectedTeamStanding.played}</p>
+                    <p className="mt-1 text-lg font-black text-white">{String(selectedTeamStanding.played ?? '-')}</p>
                   </div>
                   <div>
                     <p className="text-[9px] font-black uppercase tracking-wider text-indigo-300">Pontos</p>
-                    <p className="mt-1 text-lg font-black text-white">{selectedTeamStanding.pts}</p>
+                    <p className="mt-1 text-lg font-black text-white">{String(selectedTeamStanding.pts ?? '-')}</p>
                   </div>
                 </div>
               )}
 
               {leagueStandings && (leagueStandings.standings || leagueStandings.groups) ? (
-                <div className="border border-zinc-850 rounded-2xl overflow-hidden max-h-[460px] overflow-y-auto pr-0.5">
-                  <table className="w-full text-left text-[11px] border-collapse">
-                    <thead>
-                      <tr className="bg-zinc-950 text-zinc-500 font-bold uppercase tracking-wider text-[9px] border-b border-zinc-850">
-                        <th className="py-2.5 px-3 text-center w-8">#</th>
-                        <th className="py-2.5 px-2">Clube</th>
-                        <th className="py-2.5 px-2 text-center">J</th>
-                        <th className="py-2.5 px-2 text-center">Form</th>
-                        <th className="py-2.5 px-3 text-right">Pts</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-900/50">
-                      {getStandingsRows(leagueStandings).map((row: any) => {
-                        const isCurrentTeam = row.team_id === teamId
-                        return (
-                          <tr 
-                            key={row.team_id}
-                            className={`transition-colors ${
-                              isCurrentTeam 
-                                ? 'bg-indigo-500/10 text-indigo-300 font-black border-l-2 border-indigo-500 pl-2' 
-                                : 'text-zinc-400 hover:bg-zinc-900/20'
-                            }`}
-                          >
-                            <td className="py-2 px-3 text-center font-bold">
-                              {row.position}
-                            </td>
-                            <td className="py-2 px-2 max-w-[120px] font-bold">
-                              <Link
-                                href={`/equipa/${row.team_id}`}
-                                className="flex items-center gap-2 min-w-0 hover:text-indigo-400 hover:underline"
-                              >
-                                <span className="w-4 h-4 shrink-0 flex items-center justify-center">
-                                  {row.team_logo && row.team_logo !== 'no_logo' ? (
-                                    <img src={row.team_logo} alt="" className="w-full h-full object-contain" />
-                                  ) : null}
-                                </span>
-                                <span className="truncate">{row.team_name}</span>
-                              </Link>
-                            </td>
-                            <td className="py-2 px-2 text-center font-medium">
-                              {row.played}
-                            </td>
-                            <td className="py-2 px-2 text-center">
-                              <span className="font-mono text-[9px] tracking-wide text-zinc-500">
-                                {row.form || '-'}
-                              </span>
-                            </td>
-                            <td className={`py-2 px-3 text-right font-black ${isCurrentTeam ? 'text-indigo-400' : 'text-zinc-200'}`}>
-                              {row.pts}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <StandingsTable
+                  standings={leagueStandings}
+                  highlightedTeamIds={[teamId]}
+                  maxHeightClassName="max-h-[460px]"
+                  compact
+                />
               ) : (
                 <div className="p-4 text-center text-zinc-500 text-xs">
                   Sem classificação disponível no momento.
