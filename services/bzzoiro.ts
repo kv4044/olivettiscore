@@ -123,7 +123,16 @@ function mapStatus(raw: RawBzzoiroEvent): string {
   const status = raw.status?.toLowerCase();
   const period = raw.period?.toUpperCase();
 
-  if (status === 'finished' || status === 'ft') return 'FT';
+  if (
+    status === 'finished' ||
+    status === 'completed' ||
+    status === 'closed' ||
+    status === 'ended' ||
+    status === 'ft' ||
+    period === 'FT' ||
+    period === 'AET' ||
+    period === 'PEN'
+  ) return 'FT';
   if (status === 'ht' || status === 'halftime' || period === 'HT') return 'HT';
   if (status === 'inprogress' || status === 'live' || status === '1h' || status === '2h') {
     return 'LIVE';

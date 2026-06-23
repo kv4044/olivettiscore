@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { predictionsService } from '@/services/predictions'
 
 export async function GET(request: Request) {
@@ -16,16 +17,19 @@ export async function GET(request: Request) {
     }
 
     const result = await predictionsService.calculatePredictions()
+    revalidatePath('/dashboard')
+    revalidatePath('/jogo/[id]', 'page')
 
     return NextResponse.json({
       success: true,
       message: 'Cálculo de prognósticos concluído com sucesso!',
       data: result,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Erro interno do servidor.'
     console.error('Erro ao calcular prognósticos:', error)
     return NextResponse.json(
-      { success: false, error: error.message || 'Erro interno do servidor.' },
+      { success: false, error: message },
       { status: 500 }
     )
   }

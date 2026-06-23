@@ -6,10 +6,15 @@ export interface UserPrediction {
   id: string;
   user_id: string;
   match_id: number;
-  predicted_outcome: '1' | 'X' | '2';
+  predicted_outcome: '1' | 'X' | '2' | string;
   is_calculated: boolean;
   points_awarded: number;
   created_at: string;
+}
+
+type PredictionCalculationFilters = {
+  userId?: string
+  matchId?: number
 }
 
 export const predictionsService = {
@@ -150,14 +155,24 @@ export const predictionsService = {
    * Procura previsões não calculadas, consulta o resultado do jogo correspondente na API
    * e atribui pontuações na tabela de perfis de utilizador.
    */
-  async calculatePredictions(): Promise<{ processed: number; pointsAwarded: number }> {
+  async calculatePredictions(filters: PredictionCalculationFilters = {}): Promise<{ processed: number; pointsAwarded: number }> {
     const adminSupabase = createAdminClient()
 
     // 1. Obter todas as previsões pendentes
-    const { data: pendingPredictions, error: fetchErr } = await adminSupabase
+    let pendingPredictionsQuery = adminSupabase
       .from('predictions')
       .select('*')
       .eq('is_calculated', false)
+
+    if (filters.userId) {
+      pendingPredictionsQuery = pendingPredictionsQuery.eq('user_id', filters.userId)
+    }
+
+    if (filters.matchId) {
+      pendingPredictionsQuery = pendingPredictionsQuery.eq('match_id', filters.matchId)
+    }
+
+    const { data: pendingPredictions, error: fetchErr } = await pendingPredictionsQuery
 
     if (fetchErr) {
       throw new Error(`Erro ao obter prognósticos pendentes: ${fetchErr.message}`)
@@ -281,6 +296,7 @@ export const predictionsService = {
 
               if (updateProfileErr) {
                 console.error(`Erro ao atualizar pontos do utilizador ${pred.user_id}:`, updateProfileErr)
+                continue
               } else {
                 pointsAwardedTotal += pointsToAward
               }
@@ -289,8 +305,9 @@ export const predictionsService = {
             processed++
           }
         }
-      } catch (err: any) {
-        console.error(`Erro ao processar previsões do jogo #${matchId}:`, err.message || err)
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : err
+        console.error(`Erro ao processar previsões do jogo #${matchId}:`, message)
       }
     }
 

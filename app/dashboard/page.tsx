@@ -2,6 +2,7 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { bzzoiroService } from '@/services/bzzoiro'
+import { predictionsService } from '@/services/predictions'
 import { 
   User, 
   Award, 
@@ -50,6 +51,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   if (!user) {
     redirect('/login')
   }
+
+  await predictionsService.calculatePredictions({ userId: user.id })
 
   // 2. Procurar Detalhes do Perfil
   const { data: profile } = await supabase

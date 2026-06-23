@@ -37,6 +37,10 @@ export default async function MatchPage({ params }: MatchPageProps) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  if (user) {
+    await predictionsService.calculatePredictions({ userId: user.id, matchId })
+  }
+
   let userPoints = 0
   if (user) {
     const { data: profile } = await supabase
