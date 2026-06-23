@@ -567,30 +567,51 @@ export default async function Home({ searchParams }: PageProps) {
                             </div>
 
                             {/* Equipas e Golos */}
-                            <Link 
-                              href={`/jogo/${event.id}`}
-                              className="flex-1 flex items-center justify-between gap-6 cursor-pointer"
-                            >
+                            <div className="flex-1 flex items-center justify-between gap-6">
                               <div className="flex flex-col gap-2 flex-1">
                                 <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-zinc-300 group-hover:text-white transition-colors">
-                                  {event.home_team.logo ? (
-                                    <img src={event.home_team.logo} alt="" className="w-4 h-4 object-contain shrink-0" />
-                                  ) : (
-                                    <div className="w-4 h-4 rounded bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[8px] font-black text-zinc-500 shrink-0 select-none">
-                                      {event.home_team.name.substring(0, 2).toUpperCase()}
-                                    </div>
+                                  {user && (
+                                    <StarButton
+                                      type="team"
+                                      id={event.home_team.id}
+                                      name={event.home_team.name}
+                                      logoUrl={event.home_team.logo}
+                                      isFavorited={favorites.teams.includes(event.home_team.id)}
+                                      className="p-0.5 hover:bg-zinc-800"
+                                    />
                                   )}
-                                  <span>{event.home_team.name}</span>
+                                  <Link href={`/equipa/${event.home_team.id}`} className="flex min-w-0 items-center gap-2.5 hover:text-indigo-300 transition-colors">
+                                    {event.home_team.logo ? (
+                                      <img src={event.home_team.logo} alt="" className="w-4 h-4 object-contain shrink-0" />
+                                    ) : (
+                                      <div className="w-4 h-4 rounded bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[8px] font-black text-zinc-500 shrink-0 select-none">
+                                        {event.home_team.name.substring(0, 2).toUpperCase()}
+                                      </div>
+                                    )}
+                                    <span className="truncate">{event.home_team.name}</span>
+                                  </Link>
                                 </div>
                                 <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-zinc-300 group-hover:text-white transition-colors">
-                                  {event.away_team.logo ? (
-                                    <img src={event.away_team.logo} alt="" className="w-4 h-4 object-contain shrink-0" />
-                                  ) : (
-                                    <div className="w-4 h-4 rounded bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[8px] font-black text-zinc-500 shrink-0 select-none">
-                                      {event.away_team.name.substring(0, 2).toUpperCase()}
-                                    </div>
+                                  {user && (
+                                    <StarButton
+                                      type="team"
+                                      id={event.away_team.id}
+                                      name={event.away_team.name}
+                                      logoUrl={event.away_team.logo}
+                                      isFavorited={favorites.teams.includes(event.away_team.id)}
+                                      className="p-0.5 hover:bg-zinc-800"
+                                    />
                                   )}
-                                  <span>{event.away_team.name}</span>
+                                  <Link href={`/equipa/${event.away_team.id}`} className="flex min-w-0 items-center gap-2.5 hover:text-indigo-300 transition-colors">
+                                    {event.away_team.logo ? (
+                                      <img src={event.away_team.logo} alt="" className="w-4 h-4 object-contain shrink-0" />
+                                    ) : (
+                                      <div className="w-4 h-4 rounded bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[8px] font-black text-zinc-500 shrink-0 select-none">
+                                        {event.away_team.name.substring(0, 2).toUpperCase()}
+                                      </div>
+                                    )}
+                                    <span className="truncate">{event.away_team.name}</span>
+                                  </Link>
                                 </div>
                               </div>
 
@@ -603,7 +624,7 @@ export default async function Home({ searchParams }: PageProps) {
                               ) : (
                                 <div className="text-zinc-600 text-xs px-2 select-none">-</div>
                               )}
-                            </Link>
+                            </div>
 
                             {/* Prognósticos ML Indicator & Botão Ver Detalhes */}
                             <div className="flex items-center gap-4">

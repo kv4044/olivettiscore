@@ -90,7 +90,7 @@ export const favoritesService = {
   /**
    * Ativa/Desativa uma equipa nos favoritos.
    */
-  async toggleTeam(teamId: number, name: string): Promise<{ favorited: boolean }> {
+  async toggleTeam(teamId: number, name: string, logoUrl?: string): Promise<{ favorited: boolean }> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Utilizador não autenticado.')
@@ -106,8 +106,18 @@ export const favoritesService = {
       await supabase.from('teams').upsert({
         id: teamId,
         name: name,
+        logo_url: logoUrl || null,
         updated_at: new Date().toISOString(),
       })
+    } else if (logoUrl) {
+      await supabase
+        .from('teams')
+        .update({
+          name: name,
+          logo_url: logoUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', teamId)
     }
 
     // 2. Verificar se já é favorita

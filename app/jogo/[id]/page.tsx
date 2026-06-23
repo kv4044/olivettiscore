@@ -49,6 +49,8 @@ export default async function MatchPage({ params }: MatchPageProps) {
   // 2. Obter Dados Relacionados ao Jogo (API Bzzoiro e Supabase)
   let event: any = null
   let isMatchFav = false
+  let isHomeTeamFav = false
+  let isAwayTeamFav = false
   let userPrediction: any = null
   let odds: any = null
   let venue: any = null
@@ -69,6 +71,8 @@ export default async function MatchPage({ params }: MatchPageProps) {
 
     event = eventRes
     isMatchFav = favRes.matches.includes(matchId)
+    isHomeTeamFav = event?.home_team?.id ? favRes.teams.includes(event.home_team.id) : false
+    isAwayTeamFav = event?.away_team?.id ? favRes.teams.includes(event.away_team.id) : false
     userPrediction = predRes
     odds = oddsRes?.odds || null
 
@@ -224,21 +228,35 @@ export default async function MatchPage({ params }: MatchPageProps) {
           {/* Teams and Score Grid */}
           <div className="grid grid-cols-12 items-center gap-4">
             {/* Equipa da Casa */}
-            <Link 
-              href={`/equipa/${event.home_team.id}`}
-              className="col-span-4 flex flex-col items-center text-center gap-3 group hover:opacity-80 transition-opacity cursor-pointer"
-            >
-              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-zinc-950/40 border border-zinc-850 flex items-center justify-center p-3.5 shadow-inner group-hover:border-indigo-500/50 transition-colors">
-                {event.home_team.logo ? (
-                  <img src={event.home_team.logo} alt="" className="w-full h-full object-contain" />
-                ) : (
-                  <span className="text-xl font-black text-zinc-600">{event.home_team.name.substring(0, 2).toUpperCase()}</span>
+            <div className="col-span-4 flex flex-col items-center text-center gap-3">
+              <div className="relative">
+                {user && (
+                  <StarButton
+                    type="team"
+                    id={event.home_team.id}
+                    name={event.home_team.name}
+                    logoUrl={event.home_team.logo}
+                    isFavorited={isHomeTeamFav}
+                    className="absolute -right-3 -top-3 bg-zinc-950/90 border border-zinc-800"
+                  />
                 )}
+                <Link
+                  href={`/equipa/${event.home_team.id}`}
+                  className="group flex flex-col items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
+                >
+                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-zinc-950/40 border border-zinc-850 flex items-center justify-center p-3.5 shadow-inner group-hover:border-indigo-500/50 transition-colors">
+                    {event.home_team.logo ? (
+                      <img src={event.home_team.logo} alt="" className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-xl font-black text-zinc-600">{event.home_team.name.substring(0, 2).toUpperCase()}</span>
+                    )}
+                  </div>
+                  <h2 className="font-extrabold text-sm md:text-base text-zinc-100 max-w-[120px] md:max-w-[160px] truncate leading-tight group-hover:text-indigo-400 transition-colors">
+                    {event.home_team.name}
+                  </h2>
+                </Link>
               </div>
-              <h2 className="font-extrabold text-sm md:text-base text-zinc-100 max-w-[120px] md:max-w-[160px] truncate leading-tight group-hover:text-indigo-400 transition-colors">
-                {event.home_team.name}
-              </h2>
-            </Link>
+            </div>
 
             {/* Placar central */}
             <div className="col-span-4 flex flex-col items-center gap-2">
@@ -260,21 +278,35 @@ export default async function MatchPage({ params }: MatchPageProps) {
             </div>
 
             {/* Equipa de Fora */}
-            <Link 
-              href={`/equipa/${event.away_team.id}`}
-              className="col-span-4 flex flex-col items-center text-center gap-3 group hover:opacity-80 transition-opacity cursor-pointer"
-            >
-              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-zinc-950/40 border border-zinc-850 flex items-center justify-center p-3.5 shadow-inner group-hover:border-indigo-500/50 transition-colors">
-                {event.away_team.logo ? (
-                  <img src={event.away_team.logo} alt="" className="w-full h-full object-contain" />
-                ) : (
-                  <span className="text-xl font-black text-zinc-600">{event.away_team.name.substring(0, 2).toUpperCase()}</span>
+            <div className="col-span-4 flex flex-col items-center text-center gap-3">
+              <div className="relative">
+                {user && (
+                  <StarButton
+                    type="team"
+                    id={event.away_team.id}
+                    name={event.away_team.name}
+                    logoUrl={event.away_team.logo}
+                    isFavorited={isAwayTeamFav}
+                    className="absolute -right-3 -top-3 bg-zinc-950/90 border border-zinc-800"
+                  />
                 )}
+                <Link
+                  href={`/equipa/${event.away_team.id}`}
+                  className="group flex flex-col items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
+                >
+                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-zinc-950/40 border border-zinc-850 flex items-center justify-center p-3.5 shadow-inner group-hover:border-indigo-500/50 transition-colors">
+                    {event.away_team.logo ? (
+                      <img src={event.away_team.logo} alt="" className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-xl font-black text-zinc-600">{event.away_team.name.substring(0, 2).toUpperCase()}</span>
+                    )}
+                  </div>
+                  <h2 className="font-extrabold text-sm md:text-base text-zinc-100 max-w-[120px] md:max-w-[160px] truncate leading-tight group-hover:text-indigo-400 transition-colors">
+                    {event.away_team.name}
+                  </h2>
+                </Link>
               </div>
-              <h2 className="font-extrabold text-sm md:text-base text-zinc-100 max-w-[120px] md:max-w-[160px] truncate leading-tight group-hover:text-indigo-400 transition-colors">
-                {event.away_team.name}
-              </h2>
-            </Link>
+            </div>
           </div>
 
           {/* Marcadores dos golos e cartões */}

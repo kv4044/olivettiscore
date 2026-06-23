@@ -21,10 +21,14 @@ export async function toggleFavoriteLeagueAction(leagueId: number, name: string,
 /**
  * Ação de Servidor para favoritar/desfavoritar uma equipa.
  */
-export async function toggleFavoriteTeamAction(teamId: number, name: string) {
+export async function toggleFavoriteTeamAction(teamId: number, name: string, logoUrl?: string, sourcePath?: string) {
   try {
-    const res = await favoritesService.toggleTeam(teamId, name)
+    const res = await favoritesService.toggleTeam(teamId, name, logoUrl)
     revalidatePath('/')
+    revalidatePath(`/equipa/${teamId}`)
+    if (sourcePath?.startsWith('/jogo/')) {
+      revalidatePath(sourcePath)
+    }
     return { success: true, favorited: res.favorited }
   } catch (error: any) {
     return { success: false, error: error.message || 'Erro ao favoritar equipa.' }

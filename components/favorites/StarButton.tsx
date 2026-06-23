@@ -1,6 +1,7 @@
 'use client'
 
 import { useTransition } from 'react'
+import { usePathname } from 'next/navigation'
 import { Star } from 'lucide-react'
 import { toggleFavoriteMatchAction, toggleFavoriteLeagueAction, toggleFavoriteTeamAction } from '@/app/actions'
 
@@ -9,12 +10,14 @@ interface StarButtonProps {
   id: number;
   name: string; // Utilizado para registo automático na BD se não existir
   country?: string; // Utilizado apenas se for liga
+  logoUrl?: string;
   isFavorited: boolean;
   className?: string;
 }
 
-export default function StarButton({ type, id, name, country, isFavorited, className = '' }: StarButtonProps) {
+export default function StarButton({ type, id, name, country, logoUrl, isFavorited, className = '' }: StarButtonProps) {
   const [isPending, startTransition] = useTransition()
+  const pathname = usePathname()
 
   const handleToggle = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -29,7 +32,7 @@ export default function StarButton({ type, id, name, country, isFavorited, class
       } else if (type === 'league') {
         res = await toggleFavoriteLeagueAction(id, name, country)
       } else if (type === 'team') {
-        res = await toggleFavoriteTeamAction(id, name)
+        res = await toggleFavoriteTeamAction(id, name, logoUrl, pathname)
       }
 
       if (res && !res.success) {
