@@ -5,6 +5,8 @@ import { getTeamsLogos } from '@/services/logoService'
 import { getFlagUrl } from '@/utils/flags'
 import LocalTime from '@/components/LocalTime'
 import StarButton from '@/components/favorites/StarButton'
+import TeamStandingsSelector, { TeamCompetitionOption, TeamSeasonOption } from '@/components/TeamStandingsSelector'
+import { enrichStandingsWithLogos } from '@/utils/standings'
 import { 
   MapPin, 
   Calendar, 
@@ -15,12 +17,32 @@ import {
 
 interface PageProps {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 export const revalidate = 60 // Revalidar a cada minuto
 
-export default async function TeamDetailsPage({ params }: PageProps) {
+function getQueryValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value
+}
+
+function getStandingsRows(standings: any): any[] {
+  if (!standings) return []
+
+  if (standings.grouped && standings.groups) {
+    return Object.values(standings.groups).flatMap((rows: any) => Array.isArray(rows) ? rows : [])
+  }
+
+  return Array.isArray(standings.standings) ? standings.standings : []
+}
+
+function getTeamRow(standings: any, teamId: number) {
+  return getStandingsRows(standings).find((row: any) => Number(row.team_id) === teamId)
+}
+
+export default async function TeamDetailsPage({ params, searchParams }: PageProps) {
   const { id } = await params
+  const query = await searchParams
   const teamId = Number(id)
 
   if (isNaN(teamId)) {
@@ -77,7 +99,7 @@ export default async function TeamDetailsPage({ params }: PageProps) {
   // 4. Procurar jogos envolvendo a equipa
   let events: any[] = []
   try {
-    events = await bzzoiroService.getEvents({ team_id: String(teamId) })
+    events = await bzzoiroService.getEvents({ team_id: String(teamId) }, { fetchAll: true })
   } catch (err) {
     console.error('Erro ao obter jogos da equipa:', err)
   }
@@ -98,6 +120,53 @@ export default async function TeamDetailsPage({ params }: PageProps) {
       console.error('Erro ao obter classificações da liga:', err)
     }
   }
+
+  const competitionsMap = new Map<number, TeamCompetitionOption>()
+  events.forEach((event: any) => {
+    if (event.league?.id) {
+      competitionsMap.set(event.league.id, {
+        id: event.league.id,
+        name: event.league.name || `Liga #${event.league.id}`,
+        country: event.league.country
+      })
+    }
+  })
+
+  const competitions = Array.from(competitionsMap.values())
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  const requestedLeagueId = Number(getQueryValue(query.competicao))
+  const selectedCompetition = competitions.find((competition) => competition.id === requestedLeagueId) || competitions[0] || null
+  const selectedLeagueId = selectedCompetition?.id || null
+
+  let seasons: TeamSeasonOption[] = []
+  if (selectedLeagueId) {
+    try {
+      const seasonsData = await bzzoiroService.getLeagueSeasons(selectedLeagueId)
+      seasons = Array.isArray(seasonsData?.seasons) ? seasonsData.seasons : []
+    } catch (err) {
+      console.error('Erro ao obter épocas da competição:', err)
+    }
+  }
+
+  const requestedSeasonId = Number(getQueryValue(query.epoca))
+  const selectedSeason = seasons.find((season) => season.id === requestedSeasonId)
+    || seasons.find((season) => season.is_current)
+    || seasons[0]
+    || null
+  const selectedSeasonId = selectedSeason?.id || null
+
+  if (selectedLeagueId) {
+    try {
+      leagueStandings = await enrichStandingsWithLogos(
+        await bzzoiroService.getLeagueStandings(selectedLeagueId, selectedSeasonId || undefined)
+      )
+    } catch (err) {
+      console.error('Erro ao obter classificações da competição:', err)
+    }
+  }
+
+  const selectedTeamStanding = getTeamRow(leagueStandings, teamId)
 
   // Filtros de jogos terminados e agendados
   const completedMatches = events
@@ -245,10 +314,34 @@ export default async function TeamDetailsPage({ params }: PageProps) {
             <div className="backdrop-blur-md bg-zinc-900/20 border border-zinc-800/60 rounded-3xl p-5 shadow-lg space-y-4">
               <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
                 <Trophy className="w-4 h-4 text-amber-400" />
-                <span>Classificação na Liga ({leagueName || 'Competição'})</span>
+                <span>Classificação ({selectedCompetition?.name || 'Competição'}{selectedSeason ? ` · ${selectedSeason.name}` : ''})</span>
               </h3>
 
-              {leagueStandings && leagueStandings.standings ? (
+              <TeamStandingsSelector
+                competitions={competitions}
+                seasons={seasons}
+                selectedLeagueId={selectedLeagueId}
+                selectedSeasonId={selectedSeasonId}
+              />
+
+              {selectedTeamStanding && (
+                <div className="grid grid-cols-3 gap-2 rounded-2xl border border-indigo-500/20 bg-indigo-500/10 p-3 text-center">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-wider text-indigo-300">Posição</p>
+                    <p className="mt-1 text-lg font-black text-white">#{selectedTeamStanding.position}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-wider text-indigo-300">Jogos</p>
+                    <p className="mt-1 text-lg font-black text-white">{selectedTeamStanding.played}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-wider text-indigo-300">Pontos</p>
+                    <p className="mt-1 text-lg font-black text-white">{selectedTeamStanding.pts}</p>
+                  </div>
+                </div>
+              )}
+
+              {leagueStandings && (leagueStandings.standings || leagueStandings.groups) ? (
                 <div className="border border-zinc-850 rounded-2xl overflow-hidden max-h-[460px] overflow-y-auto pr-0.5">
                   <table className="w-full text-left text-[11px] border-collapse">
                     <thead>
@@ -261,7 +354,7 @@ export default async function TeamDetailsPage({ params }: PageProps) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-900/50">
-                      {leagueStandings.standings.map((row: any) => {
+                      {getStandingsRows(leagueStandings).map((row: any) => {
                         const isCurrentTeam = row.team_id === teamId
                         return (
                           <tr 
@@ -275,8 +368,15 @@ export default async function TeamDetailsPage({ params }: PageProps) {
                             <td className="py-2 px-3 text-center font-bold">
                               {row.position}
                             </td>
-                            <td className="py-2 px-2 truncate max-w-[120px] font-bold">
-                              {row.team_name}
+                            <td className="py-2 px-2 max-w-[120px] font-bold">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="w-4 h-4 shrink-0 flex items-center justify-center">
+                                  {row.team_logo && row.team_logo !== 'no_logo' ? (
+                                    <img src={row.team_logo} alt="" className="w-full h-full object-contain" />
+                                  ) : null}
+                                </span>
+                                <span className="truncate">{row.team_name}</span>
+                              </div>
                             </td>
                             <td className="py-2 px-2 text-center font-medium">
                               {row.played}

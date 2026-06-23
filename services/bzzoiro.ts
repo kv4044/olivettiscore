@@ -450,8 +450,9 @@ export const bzzoiroService = {
   /**
    * Retorna a classificação da liga.
    */
-  async getLeagueStandings(leagueId: number): Promise<any> {
-    return fetchBzzoiro<any>(`/leagues/${leagueId}/standings/`);
+  async getLeagueStandings(leagueId: number, seasonId?: number): Promise<any> {
+    const params: Record<string, string> = seasonId ? { season_id: String(seasonId) } : {};
+    return fetchBzzoiro<any>(`/leagues/${leagueId}/standings/`, params);
   },
 
   /**
@@ -459,6 +460,13 @@ export const bzzoiroService = {
    */
   async getLeagueCurrentSeason(leagueId: number): Promise<any> {
     return fetchBzzoiro<any>(`/leagues/${leagueId}/season/`);
+  },
+
+  /**
+   * Retorna todas as épocas conhecidas de uma liga.
+   */
+  async getLeagueSeasons(leagueId: number): Promise<any> {
+    return fetchBzzoiro<any>(`/leagues/${leagueId}/seasons/`);
   },
 
   /**

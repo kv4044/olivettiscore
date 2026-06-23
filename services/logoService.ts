@@ -86,6 +86,41 @@ const TEAM_NAME_TRANSLATIONS: Record<string, string> = {
   'servia': 'Serbia'
 };
 
+function normalizeLookupName(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+const TEAM_LOGO_FALLBACKS: Record<string, string> = {
+  'paris saint germain': 'https://upload.wikimedia.org/wikipedia/commons/5/5b/PSG_Logo.svg',
+  'psg': 'https://upload.wikimedia.org/wikipedia/commons/5/5b/PSG_Logo.svg',
+  'lille': 'https://r2.thesportsdb.com/images/media/team/badge/2giize1534005340.png',
+  'losc lille': 'https://r2.thesportsdb.com/images/media/team/badge/2giize1534005340.png',
+  'fc internazionale milano': 'https://r2.thesportsdb.com/images/media/team/badge/ryhu6d1617113103.png',
+  'internazionale': 'https://r2.thesportsdb.com/images/media/team/badge/ryhu6d1617113103.png',
+  'inter': 'https://r2.thesportsdb.com/images/media/team/badge/ryhu6d1617113103.png',
+  'sport lisboa e benfica': 'https://r2.thesportsdb.com/images/media/team/badge/hj4kyc1781152436.png'
+}
+
+const TEAM_NAME_ALIASES: Record<string, string[]> = {
+  'fc internazionale milano': ['Inter Milan', 'Internazionale'],
+  'internazionale': ['Inter Milan'],
+  'inter': ['Inter Milan'],
+  'sport lisboa e benfica': ['Benfica'],
+  'benfica': ['Sport Lisboa e Benfica'],
+  'fc bayern munchen': ['Bayern Munich', 'FC Bayern München'],
+  'bayern munchen': ['Bayern Munich', 'FC Bayern München'],
+  'atletico madrid': ['Atlético Madrid', 'Atletico Madrid'],
+  'psv eindhoven': ['PSV Eindhoven'],
+  'club brugge kv': ['Club Brugge'],
+  'crvena zvezda': ['Red Star Belgrade'],
+  'bayer 04 leverkusen': ['Bayer Leverkusen']
+}
+
 async function fetchLogoFromAPI(teamName: string): Promise<string | null> {
   const apiKey = process.env.THESPORTSDB_API_KEY || '3'
   
@@ -124,6 +159,24 @@ async function fetchLogoFromAPI(teamName: string): Promise<string | null> {
     console.error(`[LogoService] Erro ao obter logo da equipa ${teamName} do TheSportsDB:`, error)
     return null
   }
+}
+
+async function resolveTeamLogo(teamName: string): Promise<string | null> {
+  const normalizedName = normalizeLookupName(teamName)
+  if (TEAM_LOGO_FALLBACKS[normalizedName]) {
+    return TEAM_LOGO_FALLBACKS[normalizedName]
+  }
+
+  const directLogo = await fetchLogoFromAPI(teamName)
+  if (directLogo) return directLogo
+
+  const aliases = TEAM_NAME_ALIASES[normalizedName] || []
+  for (const alias of aliases) {
+    const aliasLogo = await fetchLogoFromAPI(alias)
+    if (aliasLogo) return aliasLogo
+  }
+
+  return null
 }
 
 /**
@@ -175,14 +228,14 @@ export async function getTeamsLogos(teams: { id: number; name: string }[]): Prom
     const dbTeam = dbTeamMap.get(team.id)
     
     // Se a equipa já existe na BD e já tem um logo definido (que não seja 'no_logo')
-    if (dbTeam && dbTeam.logo_url !== null && dbTeam.logo_url !== 'no_logo') {
+    if (dbTeam && dbTeam.logo_url !== null && dbTeam.logo_url.trim() !== '' && dbTeam.logo_url !== 'no_logo') {
       logoMap[team.id] = dbTeam.logo_url
       return
     }
     
     // Cache miss: ou a equipa não existe ou o logo_url é NULL
     console.log(`[LogoService] Cache miss para ${team.name} (ID: ${team.id}). A pesquisar no TheSportsDB...`)
-    const logoUrl = await fetchLogoFromAPI(team.name)
+    const logoUrl = await resolveTeamLogo(team.name)
     const finalLogoUrl = logoUrl || 'no_logo'
     
     // Adicionar à lista de registos para atualizar na BD

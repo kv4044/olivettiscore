@@ -16,6 +16,7 @@ import {
   Calendar,
   AlertCircle
 } from 'lucide-react'
+import { enrichStandingsWithLogos } from '@/utils/standings'
 
 interface MatchPageProps {
   params: Promise<{ id: string }>;
@@ -90,7 +91,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
       referee = refereeRes
       stats = statsRes
       lineups = lineupsRes
-      standings = standingsRes
+      standings = await enrichStandingsWithLogos(standingsRes)
       incidents = incidentsRes
     }
   } catch (error: any) {

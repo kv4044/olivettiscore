@@ -1052,7 +1052,14 @@ export default function MatchTabs({
                                   : 'text-zinc-200'
                               }`}
                             >
-                              {row.team_name}
+                              <div className="flex items-center gap-2 min-w-[150px]">
+                                <span className="w-4 h-4 shrink-0 flex items-center justify-center">
+                                  {row.team_logo && row.team_logo !== 'no_logo' ? (
+                                    <img src={row.team_logo} alt="" className="w-full h-full object-contain" />
+                                  ) : null}
+                                </span>
+                                <span className="truncate">{row.team_name}</span>
+                              </div>
                             </td>
                             <td className="py-2 px-2 text-center text-zinc-400">
                               {row.played}
