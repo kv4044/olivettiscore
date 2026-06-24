@@ -23,6 +23,7 @@ import LeaderboardSection from '@/components/LeaderboardSection'
 import PointTransactions, { PointTransaction } from '@/components/PointTransactions'
 import { rewards } from '@/app/loja/rewards'
 import { updateProfile } from './actions'
+import DeleteAccountButton from './DeleteAccountButton'
 
 export const revalidate = 0 // Forçar renderização dinâmica para sempre mostrar dados atualizados
 
@@ -464,6 +465,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 </div>
               </div>
             </form>
+
+            <div className="mt-6 flex justify-end">
+              <DeleteAccountButton />
+            </div>
 
           </div>
 

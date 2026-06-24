@@ -109,3 +109,41 @@ export async function updateProfile(formData: FormData): Promise<void> {
   revalidatePath('/dashboard')
   redirect('/dashboard?profileStatus=updated')
 }
+
+export async function deleteAccount(): Promise<void> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const adminSupabase = createAdminClient()
+  const { error: deleteUserError } = await adminSupabase.auth.admin.deleteUser(user.id)
+
+  if (deleteUserError) {
+    redirectWithProfileError('Nao foi possivel apagar a conta. Tenta novamente.')
+  }
+
+  const cleanupOperations = [
+    adminSupabase.from('reward_redemptions').delete().eq('user_id', user.id),
+    adminSupabase.from('predictions').delete().eq('user_id', user.id),
+    adminSupabase.from('favorite_matches').delete().eq('user_id', user.id),
+    adminSupabase.from('favorite_teams').delete().eq('user_id', user.id),
+    adminSupabase.from('favorite_leagues').delete().eq('user_id', user.id),
+    adminSupabase.from('profiles').delete().eq('id', user.id),
+  ]
+
+  const cleanupResults = await Promise.all(cleanupOperations)
+  const cleanupError = cleanupResults.find((result) => result.error)?.error
+
+  if (cleanupError) {
+    console.error('Erro ao limpar dados da conta apagada:', cleanupError)
+  }
+
+  await supabase.auth.signOut()
+  revalidatePath('/', 'layout')
+  redirect('/login')
+}
