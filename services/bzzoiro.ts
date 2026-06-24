@@ -30,6 +30,9 @@ export interface BzzoiroEvent {
   status: string; // 'LIVE' | 'FT' | 'HT' | 'NS' | ...
   minute: number | null;
   date: string;
+  round_number?: number | null;
+  round_name?: string | null;
+  group_name?: string | null;
   league: BzzoiroLeague;
   home_team: BzzoiroTeam;
   away_team: BzzoiroTeam;
@@ -151,6 +154,9 @@ function transformEvent(raw: RawBzzoiroEvent): BzzoiroEvent {
     status: mapStatus(raw),
     minute: raw.current_minute,
     date: raw.event_date,
+    round_number: raw.round_number,
+    round_name: raw.round_name || null,
+    group_name: raw.group_name,
     league: {
       id: raw.league_id,
       name: leagueInfo?.name ?? `Liga #${raw.league_id}`,

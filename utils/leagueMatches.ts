@@ -62,3 +62,25 @@ export async function getLeagueMatches(
       return kind === 'completed' ? timeB - timeA : timeA - timeB
     })
 }
+
+export async function getLeagueSeasonMatches(leagueId: number): Promise<BzzoiroEvent[]> {
+  const seasonRange = await getSeasonRange(leagueId)
+
+  const events = await bzzoiroService.getEvents(
+    {
+      league_id: String(leagueId),
+      date_from: seasonRange.start,
+      date_to: seasonRange.end,
+      limit: '200'
+    },
+    { fetchAll: true }
+  )
+
+  return events.sort((a, b) => {
+    const roundA = a.round_number ?? Number.MAX_SAFE_INTEGER
+    const roundB = b.round_number ?? Number.MAX_SAFE_INTEGER
+    if (roundA !== roundB) return roundA - roundB
+
+    return new Date(a.date).getTime() - new Date(b.date).getTime()
+  })
+}

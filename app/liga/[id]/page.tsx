@@ -7,7 +7,7 @@ import { getTeamsLogos } from '@/services/logoService'
 import LeagueTabs from '@/components/LeagueTabs'
 import StarButton from '@/components/favorites/StarButton'
 import { statsSyncService } from '@/services/statsSync'
-import { getLeagueMatches } from '@/utils/leagueMatches'
+import { getLeagueMatches, getLeagueSeasonMatches } from '@/utils/leagueMatches'
 import type { LeagueStatsSummary, PlayerStats } from '@/utils/statsGenerator'
 
 interface PageProps {
@@ -145,14 +145,17 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
   // 3. Obter jogos realizados e futuros da liga na época atual.
   let completedMatches: any[] = []
   let upcomingMatches: any[] = []
+  let seasonMatches: any[] = []
   try {
-    const [allCompletedMatches, allUpcomingMatches] = await Promise.all([
+    const [allCompletedMatches, allUpcomingMatches, allSeasonMatches] = await Promise.all([
       getLeagueMatches(leagueId, 'completed').catch(() => []),
-      getLeagueMatches(leagueId, 'upcoming').catch(() => [])
+      getLeagueMatches(leagueId, 'upcoming').catch(() => []),
+      getLeagueSeasonMatches(leagueId).catch(() => [])
     ])
 
     completedMatches = allCompletedMatches.slice(0, 5)
     upcomingMatches = allUpcomingMatches.slice(0, 5)
+    seasonMatches = allSeasonMatches
   } catch (err) {
     console.error('Erro ao obter jogos da liga:', err)
   }
@@ -241,6 +244,7 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
           leagueStandings={leagueStandings}
           completedMatches={completedMatches}
           upcomingMatches={upcomingMatches}
+          seasonMatches={seasonMatches}
           statsSummary={statsSummary}
         />
 

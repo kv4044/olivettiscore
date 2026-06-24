@@ -4,9 +4,11 @@ import { useState } from 'react'
 import Link from 'next/link'
 import LocalTime from '@/components/LocalTime'
 import StandingsTable from '@/components/StandingsTable'
+import KnockoutBracket, { getKnockoutMatches, isKnockoutMatch } from '@/components/KnockoutBracket'
 import { LeagueStatsSummary, PlayerStats } from '@/utils/statsGenerator'
 import {
   Trophy,
+  GitBranch,
   Calendar,
   Clock,
   ChevronRight,
@@ -22,6 +24,7 @@ interface LeagueTabsProps {
   leagueStandings: any
   completedMatches: any[]
   upcomingMatches: any[]
+  seasonMatches: any[]
   statsSummary: LeagueStatsSummary
 }
 
@@ -30,10 +33,34 @@ export default function LeagueTabs({
   leagueStandings,
   completedMatches,
   upcomingMatches,
+  seasonMatches,
   statsSummary
 }: LeagueTabsProps) {
   const [activeTab, setActiveTab] = useState<'geral' | 'estatisticas'>('geral')
   const [activeMatchesTab, setActiveMatchesTab] = useState<'completed' | 'upcoming'>('completed')
+
+  const standingsRows = leagueStandings?.grouped && leagueStandings?.groups
+    ? Object.values(leagueStandings.groups).flatMap((rows: any) => Array.isArray(rows) ? rows : [])
+    : Array.isArray(leagueStandings?.standings)
+      ? leagueStandings.standings
+      : []
+  const hasStandings = standingsRows.length > 0
+  const explicitKnockoutMatches = seasonMatches.filter(isKnockoutMatch)
+  const knockoutMatches = explicitKnockoutMatches.length > 0
+    ? explicitKnockoutMatches
+    : hasStandings
+      ? []
+      : getKnockoutMatches(seasonMatches)
+  const hasKnockout = knockoutMatches.length > 0
+  const hasPhaseToggle = hasStandings && hasKnockout
+  const [activeCompetitionPhase, setActiveCompetitionPhase] = useState<'standings' | 'knockout'>(
+    hasStandings ? 'standings' : 'knockout'
+  )
+  const visibleCompetitionPhase = hasStandings && activeCompetitionPhase === 'standings'
+    ? 'standings'
+    : hasKnockout
+      ? 'knockout'
+      : 'standings'
 
   // Helper for position abbreviations in Portuguese
   const getPosAbbr = (pos: string) => {
@@ -92,14 +119,49 @@ export default function LeagueTabs({
           {/* COLUNA ESQUERDA: Classificações (5/12) */}
           <div className="lg:col-span-5 space-y-6">
             
-            {/* LEAGUE STANDINGS CARD */}
+            {/* LEAGUE STANDINGS / KNOCKOUT CARD */}
             <div className="backdrop-blur-md bg-zinc-900/20 border border-zinc-800/60 rounded-3xl p-5 shadow-lg space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
-                <Trophy className="w-4 h-4 text-amber-400" />
-                <span>Tabela Classificativa</span>
-              </h3>
+              <div className="flex flex-col gap-3">
+                <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                  {visibleCompetitionPhase === 'knockout' ? (
+                    <GitBranch className="w-4 h-4 text-indigo-400" />
+                  ) : (
+                    <Trophy className="w-4 h-4 text-amber-400" />
+                  )}
+                  <span>{visibleCompetitionPhase === 'knockout' ? 'Fase Eliminatória' : 'Tabela Classificativa'}</span>
+                </h3>
 
-              {leagueStandings && (leagueStandings.standings || leagueStandings.groups) ? (
+                {hasPhaseToggle && (
+                  <div className="flex gap-2 rounded-2xl border border-zinc-850 bg-zinc-950/30 p-1.5">
+                    <button
+                      onClick={() => setActiveCompetitionPhase('standings')}
+                      className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all ${
+                        visibleCompetitionPhase === 'standings'
+                          ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                          : 'text-zinc-500 border border-transparent hover:text-zinc-300'
+                      }`}
+                    >
+                      <Trophy className="w-3.5 h-3.5" />
+                      <span>Classificação</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveCompetitionPhase('knockout')}
+                      className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all ${
+                        visibleCompetitionPhase === 'knockout'
+                          ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
+                          : 'text-zinc-500 border border-transparent hover:text-zinc-300'
+                      }`}
+                    >
+                      <GitBranch className="w-3.5 h-3.5" />
+                      <span>Eliminatórias</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {visibleCompetitionPhase === 'knockout' && hasKnockout ? (
+                <KnockoutBracket matches={knockoutMatches} />
+              ) : hasStandings ? (
                 <StandingsTable
                   standings={leagueStandings}
                   maxHeightClassName="max-h-[600px]"
@@ -107,7 +169,7 @@ export default function LeagueTabs({
                 />
               ) : (
                 <div className="p-4 text-center text-zinc-500 text-xs">
-                  Sem classificação disponível no momento.
+                  Sem classificação ou fase eliminatória disponível no momento.
                 </div>
               )}
             </div>
