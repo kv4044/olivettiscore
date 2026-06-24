@@ -260,6 +260,18 @@ export default function SearchHeader() {
     })
   }
 
+  const handleSearchSubmit = () => {
+    const trimmed = query.trim()
+    if (trimmed.length < 2) return
+
+    addToHistory(trimmed)
+    setIsOpen(false)
+    inputRef.current?.blur()
+    startTransition(() => {
+      router.push(`/pesquisa?q=${encodeURIComponent(trimmed)}`)
+    })
+  }
+
   // Filtragem local baseada na tab ativa
   const filteredResults = {
     leagues: activeTab === 'all' || activeTab === 'leagues' ? results.leagues : [],
@@ -286,7 +298,8 @@ export default function SearchHeader() {
           onFocus={() => setIsOpen(true)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && query.trim().length >= 2) {
-              addToHistory(query)
+              e.preventDefault()
+              handleSearchSubmit()
             }
           }}
           placeholder="Pesquisar ligas, equipas ou jogadores..."
