@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import StandingsTable, { getStandingsRows } from '@/components/StandingsTable'
 import {
@@ -21,6 +21,8 @@ import {
 import PredictionWidget from './PredictionWidget'
 import BetWidget from './BetWidget'
 
+type ActiveTab = 'info' | 'prediction' | 'bet' | 'stats' | 'lineups' | 'standings'
+
 interface MatchTabsProps {
   event: any
   userPrediction: any
@@ -34,6 +36,85 @@ interface MatchTabsProps {
   incidents?: any | null
   odds?: any
   userPoints?: number
+}
+
+function StatBar({
+  label,
+  homeVal,
+  awayVal,
+  suffix = '',
+  isPercentage = false,
+}: {
+  label: string
+  homeVal: number
+  awayVal: number
+  suffix?: string
+  isPercentage?: boolean
+}) {
+  const total = homeVal + awayVal || 1
+  const homePct = isPercentage ? homeVal : (homeVal / total) * 100
+  const awayPct = isPercentage ? awayVal : (awayVal / total) * 100
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between text-xs font-bold">
+        <span className="text-zinc-200">
+          {homeVal}
+          {suffix}
+        </span>
+        <span className="text-zinc-500 uppercase tracking-wider text-[10px]">
+          {label}
+        </span>
+        <span className="text-zinc-200">
+          {awayVal}
+          {suffix}
+        </span>
+      </div>
+      <div className="flex gap-1 h-2">
+        <div className="flex-1 bg-zinc-900 rounded-full overflow-hidden flex justify-end">
+          <div
+            className="bg-gradient-to-r from-indigo-600 to-indigo-400 h-full rounded-full transition-all duration-700"
+            style={{ width: `${homePct}%` }}
+          />
+        </div>
+        <div className="flex-1 bg-zinc-900 rounded-full overflow-hidden">
+          <div
+            className="bg-gradient-to-r from-purple-400 to-purple-600 h-full rounded-full transition-all duration-700"
+            style={{ width: `${awayPct}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TabBtn({
+  id,
+  icon,
+  label,
+  activeTab,
+  onSelect,
+}: {
+  id: ActiveTab
+  icon: ReactNode
+  label: string
+  activeTab: ActiveTab
+  onSelect: (id: ActiveTab) => void
+}) {
+  return (
+    <button
+      onClick={() => onSelect(id)}
+      className={`flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+        activeTab === id
+          ? id === 'prediction'
+            ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-900/30 shadow'
+            : 'bg-zinc-800 text-white shadow'
+          : 'text-zinc-500 hover:text-zinc-300'
+      }`}
+    >
+      {icon}
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  )
 }
 
 export default function MatchTabs({
@@ -50,9 +131,7 @@ export default function MatchTabs({
   odds,
   userPoints = 0,
 }: MatchTabsProps) {
-  const [activeTab, setActiveTab] = useState<
-    'info' | 'prediction' | 'bet' | 'stats' | 'lineups' | 'standings'
-  >('info')
+  const [activeTab, setActiveTab] = useState<ActiveTab>('info')
 
   // Descodificar prognóstico/aposta anterior
   let parsedPredictionOutcome: '1' | 'X' | '2' | 'OVER_25' | 'UNDER_25' | 'BTTS_YES' | 'BTTS_NO' | null = null
@@ -115,106 +194,39 @@ export default function MatchTabs({
     i.type === 'varDecision'
   )
   const sortedEvents = [...timelineEvents].sort((a: any, b: any) => a.minute - b.minute)
+  const tabButtonProps = { activeTab, onSelect: setActiveTab }
 
   // ── Stat bar component ─────────────────────────────────────────────────
-  const StatBar = ({
-    label,
-    homeVal,
-    awayVal,
-    suffix = '',
-    isPercentage = false,
-  }: {
-    label: string
-    homeVal: number
-    awayVal: number
-    suffix?: string
-    isPercentage?: boolean
-  }) => {
-    const total = homeVal + awayVal || 1
-    const homePct = isPercentage ? homeVal : (homeVal / total) * 100
-    const awayPct = isPercentage ? awayVal : (awayVal / total) * 100
-    return (
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-xs font-bold">
-          <span className="text-zinc-200">
-            {homeVal}
-            {suffix}
-          </span>
-          <span className="text-zinc-500 uppercase tracking-wider text-[10px]">
-            {label}
-          </span>
-          <span className="text-zinc-200">
-            {awayVal}
-            {suffix}
-          </span>
-        </div>
-        <div className="flex gap-1 h-2">
-          <div className="flex-1 bg-zinc-900 rounded-full overflow-hidden flex justify-end">
-            <div
-              className="bg-gradient-to-r from-indigo-600 to-indigo-400 h-full rounded-full transition-all duration-700"
-              style={{ width: `${homePct}%` }}
-            />
-          </div>
-          <div className="flex-1 bg-zinc-900 rounded-full overflow-hidden">
-            <div
-              className="bg-gradient-to-r from-purple-400 to-purple-600 h-full rounded-full transition-all duration-700"
-              style={{ width: `${awayPct}%` }}
-            />
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   // ── Tab button helper ──────────────────────────────────────────────────
-  const TabBtn = ({
-    id,
-    icon,
-    label,
-  }: {
-    id: typeof activeTab
-    icon: React.ReactNode
-    label: string
-  }) => (
-    <button
-      onClick={() => setActiveTab(id)}
-      className={`flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-        activeTab === id
-          ? id === 'prediction'
-            ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-900/30 shadow'
-            : 'bg-zinc-800 text-white shadow'
-          : 'text-zinc-500 hover:text-zinc-300'
-      }`}
-    >
-      {icon}
-      <span className="hidden sm:inline">{label}</span>
-    </button>
-  )
-
   return (
     <div className="w-full flex flex-col gap-6">
       {/* ── Tab bar ────────────────────────────────────────────────── */}
       <div className="flex border-b border-zinc-800 bg-zinc-950/40 p-1.5 rounded-xl gap-1 overflow-x-auto">
-        <TabBtn id="info" icon={<Info className="w-3.5 h-3.5" />} label="Ficha / ML" />
+        <TabBtn {...tabButtonProps} id="info" icon={<Info className="w-3.5 h-3.5" />} label="Ficha / ML" />
         {userPoints < 50 && (
           <TabBtn
+            {...tabButtonProps}
             id="prediction"
             icon={<Award className="w-3.5 h-3.5" />}
             label="Prognósticos"
           />
         )}
         <TabBtn
+          {...tabButtonProps}
           id="bet"
           icon={<TrendingUp className="w-3.5 h-3.5 text-amber-500" />}
           label="Aposta de Pontos"
         />
         <TabBtn
+          {...tabButtonProps}
           id="stats"
           icon={<BarChart3 className="w-3.5 h-3.5" />}
           label="Estatísticas"
         />
-        <TabBtn id="lineups" icon={<Users className="w-3.5 h-3.5" />} label="Plantéis" />
+        <TabBtn {...tabButtonProps} id="lineups" icon={<Users className="w-3.5 h-3.5" />} label="Plantéis" />
         <TabBtn
+          {...tabButtonProps}
           id="standings"
           icon={<Trophy className="w-3.5 h-3.5" />}
           label="Classificação"

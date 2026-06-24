@@ -164,12 +164,13 @@ export default async function LeagueDetailsPage({ params }: PageProps) {
   let statsSummary = emptyStatsSummary()
 
   try {
-    let { data: dbStats, error: statsError } = await supabase
+    const { data: initialDbStats, error: statsError } = await supabase
       .from('player_stats')
       .select('*, teams(name)')
       .eq('league_id', leagueId)
 
     if (statsError) throw statsError
+    let dbStats = initialDbStats
 
     // Uma liga ainda não sincronizada deixa a aba vazia. Nesse caso, obtém
     // os dados reais da Bzzoiro, persiste-os e volta a ler o resumo.

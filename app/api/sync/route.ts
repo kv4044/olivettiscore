@@ -1,20 +1,11 @@
 import { NextResponse } from 'next/server'
 import { bzzoiroSyncService } from '@/services/bzzoiroSync'
+import { validateSyncSecret } from '@/utils/syncAuth'
 
 export async function GET(request: Request) {
   try {
-    // Segurança básica em produção:
-    // Se SYNC_SECRET estiver definido nas variáveis de ambiente, valida-se o parâmetro ?secret=...
-    const { searchParams } = new URL(request.url)
-    const secretParam = searchParams.get('secret')
-    const syncSecret = process.env.SYNC_SECRET
-
-    if (process.env.NODE_ENV === 'production' && syncSecret && secretParam !== syncSecret) {
-      return NextResponse.json(
-        { error: 'Não autorizado. Forneça o secret de sincronização correto (?secret=...)' },
-        { status: 401 }
-      )
-    }
+    const unauthorizedResponse = validateSyncSecret(request)
+    if (unauthorizedResponse) return unauthorizedResponse
 
     const result = await bzzoiroSyncService.syncLeaguesAndTeams()
 
@@ -23,10 +14,11 @@ export async function GET(request: Request) {
       message: 'Sincronização concluída com sucesso!',
       data: result,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Erro interno do servidor.'
     console.error('Erro na sincronização Bzzoiro:', error)
     return NextResponse.json(
-      { success: false, error: error.message || 'Erro interno do servidor.' },
+      { success: false, error: message },
       { status: 500 }
     )
   }
