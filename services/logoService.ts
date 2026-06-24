@@ -252,6 +252,17 @@ async function resolveTeamLogo(teamName: string, teamId?: number): Promise<strin
   return null
 }
 
+function isPlaceholderTeamName(teamName: string): boolean {
+  const normalized = teamName.trim().toUpperCase()
+
+  return (
+    /^[WL]\d+$/.test(normalized) ||
+    /^[A-Z]\d+$/.test(normalized) ||
+    /^\d[A-Z]$/.test(normalized) ||
+    /^\d[A-Z](\/\d[A-Z])+$/.test(normalized)
+  )
+}
+
 /**
  * Obtém os logos das equipas especificadas. Consulta primeiro a base de dados
  * e, em caso de miss (ou se o logo for nulo), pesquisa na API do TheSportsDB
@@ -303,6 +314,16 @@ export async function getTeamsLogos(teams: { id: number; name: string }[]): Prom
     // Se a equipa já existe na BD e já tem um logo definido (que não seja 'no_logo')
     if (dbTeam && dbTeam.logo_url !== null && dbTeam.logo_url.trim() !== '' && dbTeam.logo_url !== 'no_logo') {
       logoMap[team.id] = dbTeam.logo_url
+      return
+    }
+
+    if (isPlaceholderTeamName(team.name)) {
+      recordsToUpsert.push({
+        id: team.id,
+        name: team.name,
+        logo_url: 'no_logo',
+        updated_at: new Date().toISOString()
+      })
       return
     }
     

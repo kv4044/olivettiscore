@@ -9,7 +9,6 @@ import TeamStandingsSelector, { TeamCompetitionOption, TeamSeasonOption } from '
 import TeamMatchesTabs from '@/components/TeamMatchesTabs'
 import TeamTabs, { type TeamSquadPlayer } from '@/components/TeamTabs'
 import { enrichStandingsWithLogos } from '@/utils/standings'
-import { statsSyncService } from '@/services/statsSync'
 import type { LeagueStatsSummary, PlayerStats } from '@/utils/statsGenerator'
 import { 
   MapPin, 
@@ -202,7 +201,7 @@ export default async function TeamDetailsPage({ params, searchParams }: PageProp
   // 4. Procurar jogos envolvendo a equipa
   let events: BzzoiroEvent[] = []
   try {
-    events = await bzzoiroService.getEvents({ team_id: String(teamId) }, { fetchAll: true })
+    events = await bzzoiroService.getEvents({ team_id: String(teamId) }, { fetchAll: true, enrich: false })
   } catch (err) {
     console.error('Erro ao obter jogos da equipa:', err)
   }
@@ -284,25 +283,10 @@ export default async function TeamDetailsPage({ params, searchParams }: PageProp
       .eq('team_id', teamId)
 
     if (statsError) throw statsError
-    let dbStats = initialStats as PlayerStatRow[] | null
-
-    if (!dbStats?.length && competitions.length > 0) {
-      for (const competition of competitions) {
-        await statsSyncService.syncPlayerStats(competition.id)
-      }
-
-      const refreshed = await supabase
-        .from('player_stats')
-        .select('*')
-        .eq('team_id', teamId)
-
-      if (refreshed.error) throw refreshed.error
-      dbStats = refreshed.data as PlayerStatRow[] | null
-    }
-
+    const dbStats = initialStats as PlayerStatRow[] | null
     teamStatsSummary = summarizeTeamPlayerStats(dbStats, teamDetails.name)
   } catch (err) {
-    console.error('Erro ao obter ou sincronizar estatisticas da equipa:', err)
+    console.error('Erro ao obter estatisticas da equipa:', err)
   }
 
   // Filtros de jogos terminados e agendados

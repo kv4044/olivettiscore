@@ -17,6 +17,7 @@ import {
   Gavel,
   Building2,
   TrendingUp,
+  LockKeyhole,
 } from 'lucide-react'
 import PredictionWidget from './PredictionWidget'
 import BetWidget from './BetWidget'
@@ -204,14 +205,12 @@ export default function MatchTabs({
       {/* ── Tab bar ────────────────────────────────────────────────── */}
       <div className="flex border-b border-zinc-800 bg-zinc-950/40 p-1.5 rounded-xl gap-1 overflow-x-auto">
         <TabBtn {...tabButtonProps} id="info" icon={<Info className="w-3.5 h-3.5" />} label="Ficha / ML" />
-        {userPoints < 50 && (
-          <TabBtn
-            {...tabButtonProps}
-            id="prediction"
-            icon={<Award className="w-3.5 h-3.5" />}
-            label="Prognósticos"
-          />
-        )}
+        <TabBtn
+          {...tabButtonProps}
+          id="prediction"
+          icon={<Award className="w-3.5 h-3.5" />}
+          label="Prognósticos"
+        />
         <TabBtn
           {...tabButtonProps}
           id="bet"
@@ -487,9 +486,28 @@ export default function MatchTabs({
         {/* ═══════════════════════════════════════════════════════════
             ABA 2 — SIMULADOR DE PROGNÓSTICOS
            ═══════════════════════════════════════════════════════════ */}
-        {activeTab === 'prediction' && userPoints < 50 && (
+        {activeTab === 'prediction' && (
           <div className="flex flex-col items-center justify-center py-6 animate-in fade-in duration-300">
-            {isUserLoggedIn ? (
+            {userPoints >= 50 ? (
+              <div className="backdrop-blur-xl bg-zinc-900/40 border border-zinc-800 rounded-3xl p-8 shadow-xl text-center max-w-md w-full">
+                <img
+                  src="/prediction-locked.png"
+                  alt="Prognósticos indisponíveis"
+                  className="mx-auto mb-5 h-40 w-40 rounded-2xl object-cover border border-zinc-800 bg-zinc-950"
+                />
+                <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-amber-300">
+                  <LockKeyhole className="h-3.5 w-3.5" />
+                  <span>Modo bloqueado</span>
+                </div>
+                <h3 className="mt-4 text-lg font-bold text-zinc-100">
+                  Prognósticos simples indisponíveis
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+                  Como já tens 50 ou mais pontos, esta tab fica apenas informativa.
+                  Continua a competir através da Aposta de Pontos.
+                </p>
+              </div>
+            ) : isUserLoggedIn ? (
               <PredictionWidget
                 matchId={matchId}
                 initialPrediction={(parsedPredictionOutcome === '1' || parsedPredictionOutcome === 'X' || parsedPredictionOutcome === '2') ? parsedPredictionOutcome : null}
