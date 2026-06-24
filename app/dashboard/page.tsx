@@ -15,18 +15,22 @@ import {
   Clock,
   CheckCircle,
   AlertTriangle,
-  ReceiptText
+  ReceiptText,
+  Save
 } from 'lucide-react'
 import RefreshButton from '@/components/RefreshButton'
 import LeaderboardSection from '@/components/LeaderboardSection'
 import PointTransactions, { PointTransaction } from '@/components/PointTransactions'
 import { rewards } from '@/app/loja/rewards'
+import { updateProfile } from './actions'
 
 export const revalidate = 0 // Forçar renderização dinâmica para sempre mostrar dados atualizados
 
 interface DashboardPageProps {
   searchParams: Promise<{
     tab?: string
+    profileStatus?: string
+    profileError?: string
   }>
 }
 
@@ -43,6 +47,8 @@ function maskEmail(email: string): string {
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const params = await searchParams
   const activeTab = params.tab === 'transactions' ? 'transactions' : 'profile'
+  const profileUpdated = params.profileStatus === 'updated'
+  const profileError = params.profileError
 
   // 1. Verificar Sessão do Utilizador
   const supabase = await createClient()
@@ -68,6 +74,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const username = profile?.username || user.user_metadata?.username || ''
   const gender = profile?.gender || user.user_metadata?.gender || 'Não divulgado'
   const rawBirthDate = profile?.birth_date || user.user_metadata?.birth_date
+  const birthDateValue = rawBirthDate
+    ? new Date(rawBirthDate).toISOString().slice(0, 10)
+    : ''
   const formattedBirthDate = rawBirthDate
     ? new Date(rawBirthDate).toLocaleDateString('pt-PT', {
         day: '2-digit',
@@ -248,6 +257,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         day: 'numeric'
       })
     : 'N/A'
+  const today = new Date()
+  const maxBirthDate = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0'),
+  ].join('-')
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-zinc-950 to-black text-zinc-100 flex flex-col font-sans">
@@ -308,6 +323,20 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
           {/* Cartão de Conta do Utilizador */}
           <div className="md:col-span-2 backdrop-blur-xl bg-zinc-900/40 border border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
+            {profileUpdated && (
+              <div className="mb-4 flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-300">
+                <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span className="font-semibold">Perfil atualizado com sucesso.</span>
+              </div>
+            )}
+
+            {profileError && (
+              <div className="mb-4 flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-300">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span className="font-semibold">{profileError}</span>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Nome de Utilizador */}
               <div className="flex items-center gap-3 p-3 rounded-2xl bg-zinc-950/40 border border-zinc-850">
@@ -368,6 +397,73 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 </div>
               </div>
             </div>
+
+            <form action={updateProfile} className="mt-6 border-t border-zinc-850 pt-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-black uppercase tracking-wider text-zinc-300">Editar perfil</h2>
+                  <p className="mt-1 text-xs text-zinc-500">Atualiza os dados públicos da tua conta.</p>
+                </div>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/15 px-4 py-2 text-xs font-black uppercase tracking-wider text-indigo-200 transition-all hover:border-indigo-400 hover:bg-indigo-500 hover:text-white active:scale-[0.98] cursor-pointer"
+                >
+                  <Save className="h-4 w-4" />
+                  Guardar
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <label htmlFor="profile_username" className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    Username
+                  </label>
+                  <input
+                    id="profile_username"
+                    name="username"
+                    type="text"
+                    required
+                    minLength={3}
+                    maxLength={20}
+                    defaultValue={username}
+                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-xs font-semibold text-zinc-100 outline-none transition-all placeholder:text-zinc-650 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    placeholder="joaosilva"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="profile_full_name" className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    Nome completo
+                  </label>
+                  <input
+                    id="profile_full_name"
+                    name="full_name"
+                    type="text"
+                    required
+                    maxLength={80}
+                    defaultValue={fullName}
+                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-xs font-semibold text-zinc-100 outline-none transition-all placeholder:text-zinc-650 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    placeholder="João Silva"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="profile_birth_date" className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    Data de nascimento
+                  </label>
+                  <input
+                    id="profile_birth_date"
+                    name="birth_date"
+                    type="date"
+                    required
+                    min="1930-01-01"
+                    max={maxBirthDate}
+                    defaultValue={birthDateValue}
+                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-xs font-semibold text-zinc-100 outline-none transition-all focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+            </form>
 
           </div>
 
