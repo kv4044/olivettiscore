@@ -91,25 +91,80 @@ function normalizeLookupName(value: string) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
+    .replace(/&/g, ' and ')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()
 }
 
+function compactLookupName(value: string) {
+  return normalizeLookupName(value)
+    .replace(/\b(fc|cf|sc|afc|ac|cd|ud|fk|sk|bk|if|as|de|the)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function isTrustedTeamMatch(candidateName: string, expectedNames: string[]) {
+  const candidate = normalizeLookupName(candidateName)
+  const compactCandidate = compactLookupName(candidateName)
+
+  return expectedNames.some((expectedName) => {
+    const expected = normalizeLookupName(expectedName)
+    const compactExpected = compactLookupName(expectedName)
+
+    return candidate === expected || compactCandidate === compactExpected
+  })
+}
+
 const TEAM_LOGO_FALLBACKS: Record<string, string> = {
-  'paris saint germain': 'https://upload.wikimedia.org/wikipedia/commons/5/5b/PSG_Logo.svg',
-  'psg': 'https://upload.wikimedia.org/wikipedia/commons/5/5b/PSG_Logo.svg',
+  'paris saint germain': 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a7/Paris_Saint-Germain_F.C..svg/330px-Paris_Saint-Germain_F.C..svg.png',
+  'psg': 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a7/Paris_Saint-Germain_F.C..svg/330px-Paris_Saint-Germain_F.C..svg.png',
+  'atalanta': 'https://upload.wikimedia.org/wikipedia/en/thumb/f/f2/Atalanta_BC_new_logo.svg/330px-Atalanta_BC_new_logo.svg.png',
+  'club brugge kv': 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d0/Club_Brugge_KV_logo.svg/250px-Club_Brugge_KV_logo.svg.png',
+  'club brugge': 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d0/Club_Brugge_KV_logo.svg/250px-Club_Brugge_KV_logo.svg.png',
+  'olympique de marseille': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Olympique_de_Marseille_2026_logo.svg/330px-Olympique_de_Marseille_2026_logo.svg.png',
+  'marseille': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Olympique_de_Marseille_2026_logo.svg/330px-Olympique_de_Marseille_2026_logo.svg.png',
+  'cd nacional': 'https://upload.wikimedia.org/wikipedia/en/thumb/9/90/C.D._Nacional_logo.svg/330px-C.D._Nacional_logo.svg.png',
+  'senegal': 'https://upload.wikimedia.org/wikipedia/en/thumb/1/16/Senegalese_Football_Federation_logo.svg/330px-Senegalese_Football_Federation_logo.svg.png',
   'lille': 'https://r2.thesportsdb.com/images/media/team/badge/2giize1534005340.png',
   'losc lille': 'https://r2.thesportsdb.com/images/media/team/badge/2giize1534005340.png',
+  'sporting braga': 'https://r2.thesportsdb.com/images/media/team/badge/8g4aod1678717261.png',
+  'sc braga': 'https://r2.thesportsdb.com/images/media/team/badge/8g4aod1678717261.png',
   'fc internazionale milano': 'https://r2.thesportsdb.com/images/media/team/badge/ryhu6d1617113103.png',
   'internazionale': 'https://r2.thesportsdb.com/images/media/team/badge/ryhu6d1617113103.png',
   'inter': 'https://r2.thesportsdb.com/images/media/team/badge/ryhu6d1617113103.png',
-  'sport lisboa e benfica': 'https://r2.thesportsdb.com/images/media/team/badge/hj4kyc1781152436.png'
+  'sport lisboa e benfica': 'https://r2.thesportsdb.com/images/media/team/badge/hj4kyc1781152436.png',
+  'benfica': 'https://r2.thesportsdb.com/images/media/team/badge/hj4kyc1781152436.png',
+  'bodo glimt': 'https://upload.wikimedia.org/wikipedia/en/thumb/8/8d/FK_Bodo_Glimt_logo.svg/250px-FK_Bodo_Glimt_logo.svg.png',
+  'fk bodo glimt': 'https://upload.wikimedia.org/wikipedia/en/thumb/8/8d/FK_Bodo_Glimt_logo.svg/250px-FK_Bodo_Glimt_logo.svg.png',
+  'royale union saint gilloise': 'https://upload.wikimedia.org/wikipedia/fr/thumb/8/87/Logo_Royale_Union_Saint-Gilloise_2025.svg/langfr-250px-Logo_Royale_Union_Saint-Gilloise_2025.svg.png',
+  'union saint gilloise': 'https://upload.wikimedia.org/wikipedia/fr/thumb/8/87/Logo_Royale_Union_Saint-Gilloise_2025.svg/langfr-250px-Logo_Royale_Union_Saint-Gilloise_2025.svg.png',
+  'fc kobenhavn': 'https://r2.thesportsdb.com/images/media/team/badge/styqtr1473535513.png',
+  'fc copenhagen': 'https://r2.thesportsdb.com/images/media/team/badge/styqtr1473535513.png',
+  'sk slavia praha': 'https://r2.thesportsdb.com/images/media/team/badge/l7kl4n1759252139.png',
+  'slavia prague': 'https://r2.thesportsdb.com/images/media/team/badge/l7kl4n1759252139.png',
+  'bosnia and herzegovina': 'https://r2.thesportsdb.com/images/media/team/badge/wtqqst1455463120.png',
+  'dr congo': 'https://r2.thesportsdb.com/images/media/team/badge/s85jjw1728749022.png',
+  'democratic republic of the congo': 'https://r2.thesportsdb.com/images/media/team/badge/s85jjw1728749022.png'
+}
+
+const TEAM_LOGO_FALLBACKS_BY_ID: Record<number, string> = {
+  23: 'https://upload.wikimedia.org/wikipedia/en/thumb/9/90/C.D._Nacional_logo.svg/330px-C.D._Nacional_logo.svg.png',
+  36: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d5/Vit%C3%B3ria_Guimar%C3%A3es.svg/330px-Vit%C3%B3ria_Guimar%C3%A3es.svg.png',
+  51: 'https://upload.wikimedia.org/wikipedia/en/thumb/9/98/Club_Athletic_Bilbao_logo.svg/250px-Club_Athletic_Bilbao_logo.svg.png',
+  71: 'https://upload.wikimedia.org/wikipedia/en/thumb/f/f2/Atalanta_BC_new_logo.svg/330px-Atalanta_BC_new_logo.svg.png',
+  98: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Olympique_de_Marseille_2026_logo.svg/330px-Olympique_de_Marseille_2026_logo.svg.png',
+  114: 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a7/Paris_Saint-Germain_F.C..svg/330px-Paris_Saint-Germain_F.C..svg.png',
+  123: 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d0/Club_Brugge_KV_logo.svg/250px-Club_Brugge_KV_logo.svg.png',
+  157: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Esporte_Clube_Vit%C3%B3ria_%282024%29.svg/960px-Esporte_Clube_Vit%C3%B3ria_%282024%29.svg.png',
+  486: 'https://upload.wikimedia.org/wikipedia/en/thumb/1/16/Senegalese_Football_Federation_logo.svg/330px-Senegalese_Football_Federation_logo.svg.png',
+  843: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/Athletic_Club_%28Minas_Gerais%29.svg/330px-Athletic_Club_%28Minas_Gerais%29.svg.png'
 }
 
 const TEAM_NAME_ALIASES: Record<string, string[]> = {
   'fc internazionale milano': ['Inter Milan', 'Internazionale'],
   'internazionale': ['Inter Milan'],
   'inter': ['Inter Milan'],
+  'sporting braga': ['SC Braga', 'Braga'],
   'sport lisboa e benfica': ['Benfica'],
   'benfica': ['Sport Lisboa e Benfica'],
   'fc bayern munchen': ['Bayern Munich', 'FC Bayern München'],
@@ -118,14 +173,23 @@ const TEAM_NAME_ALIASES: Record<string, string[]> = {
   'psv eindhoven': ['PSV Eindhoven'],
   'club brugge kv': ['Club Brugge'],
   'crvena zvezda': ['Red Star Belgrade'],
-  'bayer 04 leverkusen': ['Bayer Leverkusen']
+  'bayer 04 leverkusen': ['Bayer Leverkusen'],
+  'futbol club barcelona': ['FC Barcelona', 'Barcelona'],
+  'bodo glimt': ['FK Bodo/Glimt', 'Bodo/Glimt', 'FK Bodø/Glimt', 'Bodø/Glimt'],
+  'royale union saint gilloise': ['Union Saint-Gilloise', 'Union SG', 'USG'],
+  'fc kobenhavn': ['FC Copenhagen', 'F.C. Kobenhavn', 'F.C. København'],
+  'sk slavia praha': ['Slavia Prague'],
+  'bosnia and herzegovina': ['Bosnia and Herzegovina'],
+  'dr congo': ['Democratic Republic of the Congo'],
+  'eua': ['United States', 'United States of America'],
+  'usa': ['United States', 'United States of America']
 }
 
-async function fetchLogoFromAPI(teamName: string): Promise<string | null> {
+async function fetchLogoFromAPI(teamName: string, expectedNames: string[] = [teamName]): Promise<string | null> {
   const apiKey = process.env.THESPORTSDB_API_KEY || '3'
   
   let searchName = teamName.trim();
-  const lowerName = searchName.toLowerCase();
+  const lowerName = normalizeLookupName(searchName);
   if (TEAM_NAME_TRANSLATIONS[lowerName]) {
     searchName = TEAM_NAME_TRANSLATIONS[lowerName];
   }
@@ -152,27 +216,36 @@ async function fetchLogoFromAPI(teamName: string): Promise<string | null> {
       return exactMatch.strBadge
     }
     
-    // 2. Se não houver correspondência exata, escolher a primeira equipa de futebol devolvida
-    const firstTeam = soccerTeams[0]
-    return firstTeam.strBadge || null
+    // Aceitar apenas resultados que batem com o nome esperado ou aliases controlados.
+    const trustedMatch = soccerTeams.find(t =>
+      t.strBadge && isTrustedTeamMatch(t.strTeam, [...expectedNames, searchName])
+    )
+
+    return trustedMatch?.strBadge || null
   } catch (error) {
     console.error(`[LogoService] Erro ao obter logo da equipa ${teamName} do TheSportsDB:`, error)
     return null
   }
 }
 
-async function resolveTeamLogo(teamName: string): Promise<string | null> {
+async function resolveTeamLogo(teamName: string, teamId?: number): Promise<string | null> {
+  if (teamId && TEAM_LOGO_FALLBACKS_BY_ID[teamId]) {
+    return TEAM_LOGO_FALLBACKS_BY_ID[teamId]
+  }
+
   const normalizedName = normalizeLookupName(teamName)
   if (TEAM_LOGO_FALLBACKS[normalizedName]) {
     return TEAM_LOGO_FALLBACKS[normalizedName]
   }
 
-  const directLogo = await fetchLogoFromAPI(teamName)
+  const aliases = TEAM_NAME_ALIASES[normalizedName] || []
+  const expectedNames = [teamName, ...aliases]
+
+  const directLogo = await fetchLogoFromAPI(teamName, expectedNames)
   if (directLogo) return directLogo
 
-  const aliases = TEAM_NAME_ALIASES[normalizedName] || []
   for (const alias of aliases) {
-    const aliasLogo = await fetchLogoFromAPI(alias)
+    const aliasLogo = await fetchLogoFromAPI(alias, expectedNames)
     if (aliasLogo) return aliasLogo
   }
 
@@ -235,7 +308,7 @@ export async function getTeamsLogos(teams: { id: number; name: string }[]): Prom
     
     // Cache miss: ou a equipa não existe ou o logo_url é NULL
     console.log(`[LogoService] Cache miss para ${team.name} (ID: ${team.id}). A pesquisar no TheSportsDB...`)
-    const logoUrl = await resolveTeamLogo(team.name)
+    const logoUrl = await resolveTeamLogo(team.name, team.id)
     const finalLogoUrl = logoUrl || 'no_logo'
     
     // Adicionar à lista de registos para atualizar na BD
