@@ -9,11 +9,12 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
+     * - api (route handlers already perform their own auth checks)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - Images and other static assets (svg, png, jpg, etc.)
+     * - Images, fonts, documents and other static assets
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|txt|xml|woff2?)$).*)',
   ],
 }
