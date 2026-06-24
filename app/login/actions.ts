@@ -10,6 +10,29 @@ export type ActionState = {
   success?: string | null;
 } | null;
 
+export async function signInWithGoogle(): Promise<void> {
+  const requestHeaders = await headers()
+  const origin = requestHeaders.get('origin')
+
+  if (!origin) {
+    redirect('/login?authError=google')
+  }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${origin}/auth/callback?next=/dashboard`,
+    },
+  })
+
+  if (error || !data.url) {
+    redirect('/login?authError=google')
+  }
+
+  redirect(data.url)
+}
+
 export async function login(prevState: ActionState, formData: FormData): Promise<ActionState> {
   const supabase = await createClient()
 

@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useActionState, useEffect, useTransition } from 'react'
-import { forgotPassword, login, signup } from './actions'
-import { Mail, Lock, Loader2, CheckCircle2, AlertCircle, ArrowRight, ChevronDown } from 'lucide-react'
+import { forgotPassword, login, signInWithGoogle, signup } from './actions'
+import { Mail, Lock, Loader2, CheckCircle2, AlertCircle, ArrowRight, ChevronDown, CircleUserRound } from 'lucide-react'
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true)
@@ -66,6 +66,16 @@ export default function LoginPage() {
       setLocalError(null)
     }
   }, [state])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const authError = params.get('authError')
+
+    if (authError === 'google' || authError === 'oauth') {
+      setLocalError('Não foi possível iniciar sessão com o Google. Tenta novamente.')
+      setLocalSuccess(null)
+    }
+  }, [])
 
   return (
     <div className="relative min-h-screen flex flex-col justify-center items-center px-4 overflow-hidden bg-radial from-zinc-900 to-black text-zinc-100">
@@ -137,6 +147,22 @@ export default function LoginPage() {
               </div>
             </div>
           )}
+
+          <form action={signInWithGoogle}>
+            <button
+              type="submit"
+              className="w-full py-3 px-4 rounded-xl border border-zinc-700 bg-zinc-950/60 text-sm font-semibold text-zinc-100 hover:bg-zinc-900 hover:border-zinc-500 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <CircleUserRound className="w-5 h-5 text-zinc-300" />
+              <span>{isLogin ? 'Entrar com Google' : 'Registar com Google'}</span>
+            </button>
+          </form>
+
+          <div className="flex items-center gap-3 my-6 text-xs font-semibold uppercase tracking-wider text-zinc-600">
+            <div className="h-px flex-1 bg-zinc-800" />
+            <span>ou</span>
+            <div className="h-px flex-1 bg-zinc-800" />
+          </div>
 
           {/* Form */}
           <form 

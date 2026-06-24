@@ -19,6 +19,12 @@ export async function GET(request: Request) {
     }
   }
 
+  if (nextPath !== '/reset-password') {
+    return NextResponse.redirect(
+      new URL('/login?authError=oauth', requestUrl.origin)
+    )
+  }
+
   return NextResponse.redirect(
     new URL('/login?recoveryError=invalid-link', requestUrl.origin)
   )
