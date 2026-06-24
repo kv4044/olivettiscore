@@ -56,9 +56,9 @@ export default async function Home({ searchParams }: PageProps) {
   const userPromise = getCurrentUser()
 
   // Obter logótipos das ligas populares para a barra lateral
-  const popularLeaguesWithLogos = await getLeaguesLogos(
+  const popularLeaguesWithLogosPromise = getLeaguesLogos(
     POPULAR_LEAGUES.map(l => ({ id: l.id, name: l.name }))
-  )
+  ).catch(() => ({} as Record<number, string>))
   const user = await userPromise
 
   let favorites: UserFavorites = { leagues: [], teams: [], matches: [] }
@@ -127,6 +127,7 @@ export default async function Home({ searchParams }: PageProps) {
   } catch (error: unknown) {
     errorMsg = error instanceof Error ? error.message : 'Erro ao carregar dados dos jogos.'
   }
+  const popularLeaguesWithLogos = await popularLeaguesWithLogosPromise
 
   // 4. Filtrar por Estado (Todos, Ao Vivo, Terminados, Agendados, Favoritos) se não for o seletor principal LIVE
   if (statusParam !== 'all' && statusParam !== 'live') {
@@ -551,17 +552,24 @@ export default async function Home({ searchParams }: PageProps) {
                         return (
                           <div 
                             key={event.id} 
-                            className="group hover:bg-zinc-900/30 transition-all duration-300 flex items-center justify-between p-4 gap-4"
+                            className="group relative hover:bg-zinc-900/30 transition-all duration-300 flex items-center justify-between p-4 gap-4 cursor-pointer"
                           >
+                            <Link
+                              href={`/jogo/${event.id}`}
+                              aria-label={`Ver detalhes de ${event.home_team.name} vs ${event.away_team.name}`}
+                              className="absolute inset-0 z-20"
+                            />
                             {/* Favoritar Jogo e Hora/Status */}
-                            <div className="flex items-center gap-3 min-w-[96px]">
+                            <div className="relative flex items-center gap-3 min-w-[96px]">
                               {user && (
-                                <StarButton
-                                  type="match"
-                                  id={event.id}
-                                  name={`${event.home_team.name} vs ${event.away_team.name}`}
-                                  isFavorited={isMatchFav}
-                                />
+                                <div className="relative z-30">
+                                  <StarButton
+                                    type="match"
+                                    id={event.id}
+                                    name={`${event.home_team.name} vs ${event.away_team.name}`}
+                                    isFavorited={isMatchFav}
+                                  />
+                                </div>
                               )}
                               <div className="flex flex-col items-start">
                                 {getStatusBadge(event)}
@@ -569,20 +577,22 @@ export default async function Home({ searchParams }: PageProps) {
                             </div>
 
                             {/* Equipas e Golos */}
-                            <div className="flex-1 flex items-center justify-between gap-6">
+                            <div className="relative flex-1 flex items-center justify-between gap-6">
                               <div className="flex flex-col gap-2 flex-1">
                                 <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-zinc-300 group-hover:text-white transition-colors">
                                   {user && (
-                                    <StarButton
-                                      type="team"
-                                      id={event.home_team.id}
-                                      name={event.home_team.name}
-                                      logoUrl={event.home_team.logo}
-                                      isFavorited={favorites.teams.includes(event.home_team.id)}
-                                      className="p-0.5 hover:bg-zinc-800"
-                                    />
+                                    <div className="relative z-30">
+                                      <StarButton
+                                        type="team"
+                                        id={event.home_team.id}
+                                        name={event.home_team.name}
+                                        logoUrl={event.home_team.logo}
+                                        isFavorited={favorites.teams.includes(event.home_team.id)}
+                                        className="p-0.5 hover:bg-zinc-800"
+                                      />
+                                    </div>
                                   )}
-                                  <Link href={`/equipa/${event.home_team.id}`} className="flex min-w-0 items-center gap-2.5 hover:text-indigo-300 transition-colors">
+                                  <Link href={`/equipa/${event.home_team.id}`} className="relative z-30 flex min-w-0 items-center gap-2.5 hover:text-indigo-300 transition-colors">
                                     {event.home_team.logo ? (
                                       <img src={event.home_team.logo} alt="" className="w-4 h-4 object-contain shrink-0" />
                                     ) : (
@@ -595,16 +605,18 @@ export default async function Home({ searchParams }: PageProps) {
                                 </div>
                                 <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-zinc-300 group-hover:text-white transition-colors">
                                   {user && (
-                                    <StarButton
-                                      type="team"
-                                      id={event.away_team.id}
-                                      name={event.away_team.name}
-                                      logoUrl={event.away_team.logo}
-                                      isFavorited={favorites.teams.includes(event.away_team.id)}
-                                      className="p-0.5 hover:bg-zinc-800"
-                                    />
+                                    <div className="relative z-30">
+                                      <StarButton
+                                        type="team"
+                                        id={event.away_team.id}
+                                        name={event.away_team.name}
+                                        logoUrl={event.away_team.logo}
+                                        isFavorited={favorites.teams.includes(event.away_team.id)}
+                                        className="p-0.5 hover:bg-zinc-800"
+                                      />
+                                    </div>
                                   )}
-                                  <Link href={`/equipa/${event.away_team.id}`} className="flex min-w-0 items-center gap-2.5 hover:text-indigo-300 transition-colors">
+                                  <Link href={`/equipa/${event.away_team.id}`} className="relative z-30 flex min-w-0 items-center gap-2.5 hover:text-indigo-300 transition-colors">
                                     {event.away_team.logo ? (
                                       <img src={event.away_team.logo} alt="" className="w-4 h-4 object-contain shrink-0" />
                                     ) : (
@@ -629,7 +641,7 @@ export default async function Home({ searchParams }: PageProps) {
                             </div>
 
                             {/* Prognósticos ML Indicator & Botão Ver Detalhes */}
-                            <div className="flex items-center gap-4">
+                            <div className="relative flex items-center gap-4">
                               {event.predictions && (
                                 <div className="hidden md:flex flex-col items-end gap-0.5 text-[9px] font-mono text-zinc-500 bg-zinc-950/40 p-1.5 border border-zinc-900 rounded-lg">
                                   <span className="text-zinc-600 font-bold uppercase tracking-wider text-[8px]">CatBoost ML:</span>
@@ -642,8 +654,8 @@ export default async function Home({ searchParams }: PageProps) {
                               )}
 
                               <Link
-                                href={`/jogo/${event.id}`}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xxs font-bold uppercase tracking-wider border border-zinc-800 bg-zinc-950/40 hover:bg-indigo-500 hover:text-white hover:border-indigo-400 text-zinc-400 transition-all select-none"
+                                href={`/jogo/${event.id}?tab=bet`}
+                                className="relative z-30 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xxs font-bold uppercase tracking-wider border border-zinc-800 bg-zinc-950/40 hover:bg-indigo-500 hover:text-white hover:border-indigo-400 text-zinc-400 transition-all select-none"
                               >
                                 <span>Apostar</span>
                                 <ChevronRight className="w-3 h-3" />

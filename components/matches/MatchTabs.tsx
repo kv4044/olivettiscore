@@ -29,6 +29,7 @@ interface MatchTabsProps {
   userPrediction: any
   isUserLoggedIn: boolean
   matchId: number
+  initialTab?: ActiveTab
   venue: any | null
   referee: any | null
   stats: any | null
@@ -123,6 +124,7 @@ export default function MatchTabs({
   userPrediction,
   isUserLoggedIn,
   matchId,
+  initialTab = 'info',
   venue,
   referee,
   stats,
@@ -132,7 +134,7 @@ export default function MatchTabs({
   odds,
   userPoints = 0,
 }: MatchTabsProps) {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('info')
+  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab)
 
   // Descodificar prognóstico/aposta anterior
   let parsedPredictionOutcome: '1' | 'X' | '2' | 'OVER_25' | 'UNDER_25' | 'BTTS_YES' | 'BTTS_NO' | null = null

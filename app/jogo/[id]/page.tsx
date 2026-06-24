@@ -20,14 +20,24 @@ import { enrichStandingsWithLogos } from '@/utils/standings'
 
 interface MatchPageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }
 import { getLeagueLogoUrl } from '@/utils/leagueLogo'
 
 export const revalidate = 10 // Revalidar a página a cada 10 segundos para score live
 
-export default async function MatchPage({ params }: MatchPageProps) {
+type MatchTab = 'info' | 'prediction' | 'bet' | 'stats' | 'lineups' | 'standings'
+
+function getInitialTab(tab?: string): MatchTab {
+  const validTabs: MatchTab[] = ['info', 'prediction', 'bet', 'stats', 'lineups', 'standings']
+  return validTabs.includes(tab as MatchTab) ? (tab as MatchTab) : 'info'
+}
+
+export default async function MatchPage({ params, searchParams }: MatchPageProps) {
   const { id } = await params
+  const { tab } = await searchParams
   const matchId = Number(id)
+  const initialTab = getInitialTab(tab)
 
   if (isNaN(matchId)) {
     return notFound()
@@ -412,6 +422,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
             userPrediction={userPrediction}
             isUserLoggedIn={!!user}
             matchId={matchId}
+            initialTab={initialTab}
             venue={venue}
             referee={referee}
             stats={stats}
