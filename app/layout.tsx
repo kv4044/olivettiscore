@@ -33,7 +33,7 @@ export default function RootLayout({
       lang="pt-PT"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <AuthRecoveryRedirect />
         <MainHeader />
         {children}
