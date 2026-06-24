@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClient, getCurrentUser } from '@/utils/supabase/server'
 
 export interface UserFavorites {
   leagues: number[];
@@ -7,22 +7,14 @@ export interface UserFavorites {
 }
 
 export const favoritesService = {
-  /**
-   * Obtém os IDs favoritos (ligas, equipas e jogos) do utilizador autenticado.
-   */
-  async getUserFavorites(): Promise<UserFavorites> {
+  async getFavoritesForUser(userId: string): Promise<UserFavorites> {
     try {
       const supabase = await createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
-        return { leagues: [], teams: [], matches: [] }
-      }
 
       const [leaguesRes, teamsRes, matchesRes] = await Promise.all([
-        supabase.from('favorite_leagues').select('league_id').eq('user_id', user.id),
-        supabase.from('favorite_teams').select('team_id').eq('user_id', user.id),
-        supabase.from('favorite_matches').select('match_id').eq('user_id', user.id),
+        supabase.from('favorite_leagues').select('league_id').eq('user_id', userId),
+        supabase.from('favorite_teams').select('team_id').eq('user_id', userId),
+        supabase.from('favorite_matches').select('match_id').eq('user_id', userId),
       ])
 
       return {
@@ -34,6 +26,16 @@ export const favoritesService = {
       console.error('Erro ao obter favoritos:', error)
       return { leagues: [], teams: [], matches: [] }
     }
+  },
+
+  /**
+   * Obtém os IDs favoritos (ligas, equipas e jogos) do utilizador autenticado.
+   */
+  async getUserFavorites(): Promise<UserFavorites> {
+    const user = await getCurrentUser()
+    if (!user) return { leagues: [], teams: [], matches: [] }
+
+    return this.getFavoritesForUser(user.id)
   },
 
   /**

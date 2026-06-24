@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { createClient } from '@/utils/supabase/server'
+import { createClient, getCurrentUser } from '@/utils/supabase/server'
 import { bzzoiroService, BzzoiroEvent, BzzoiroLeague } from '@/services/bzzoiro'
 import { favoritesService, UserFavorites } from '@/services/favorites'
 import { getLeaguesLogos } from '@/services/logoService'
@@ -53,18 +53,19 @@ export default async function Home({ searchParams }: PageProps) {
 
   // 1. Autenticação e Pontos do Utilizador
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const userPromise = getCurrentUser()
 
   // Obter logótipos das ligas populares para a barra lateral
   const popularLeaguesWithLogos = await getLeaguesLogos(
     POPULAR_LEAGUES.map(l => ({ id: l.id, name: l.name }))
   )
+  const user = await userPromise
 
   let favorites: UserFavorites = { leagues: [], teams: [], matches: [] }
   let favoriteTeamsList: Array<{ id: number; name: string; logo_url?: string }> = []
 
   if (user) {
-    favorites = await favoritesService.getUserFavorites()
+    favorites = await favoritesService.getFavoritesForUser(user.id)
 
     if (favorites.teams.length > 0) {
       const { data: teamsData } = await supabase
@@ -78,25 +79,24 @@ export default async function Home({ searchParams }: PageProps) {
   }
 
   // Obter nomes das ligas e equipas se os filtros estiverem ativos
-  let activeLeagueName = ''
-  if (leagueParam) {
-    const { data: leagueData } = await supabase
-      .from('leagues')
-      .select('name')
-      .eq('id', Number(leagueParam))
-      .maybeSingle()
-    activeLeagueName = leagueData?.name || `Liga #${leagueParam}`
-  }
-
-  let activeTeamName = ''
-  if (teamParam) {
-    const { data: teamData } = await supabase
-      .from('teams')
-      .select('name')
-      .eq('id', Number(teamParam))
-      .maybeSingle()
-    activeTeamName = teamData?.name || `Equipa #${teamParam}`
-  }
+  const [activeLeagueName, activeTeamName] = await Promise.all([
+    leagueParam
+      ? supabase
+        .from('leagues')
+        .select('name')
+        .eq('id', Number(leagueParam))
+        .maybeSingle()
+        .then(({ data }) => data?.name || `Liga #${leagueParam}`)
+      : Promise.resolve(''),
+    teamParam
+      ? supabase
+        .from('teams')
+        .select('name')
+        .eq('id', Number(teamParam))
+        .maybeSingle()
+        .then(({ data }) => data?.name || `Equipa #${teamParam}`)
+      : Promise.resolve(''),
+  ])
 
   // Helper para formatar data local em YYYY-MM-DD sem problemas de fuso horário
   const formatDateLocal = (date: Date) => {
@@ -124,8 +124,8 @@ export default async function Home({ searchParams }: PageProps) {
         date_to: activeDate
       })
     }
-  } catch (error: any) {
-    errorMsg = error.message || 'Erro ao carregar dados dos jogos.'
+  } catch (error: unknown) {
+    errorMsg = error instanceof Error ? error.message : 'Erro ao carregar dados dos jogos.'
   }
 
   // 4. Filtrar por Estado (Todos, Ao Vivo, Terminados, Agendados, Favoritos) se não for o seletor principal LIVE

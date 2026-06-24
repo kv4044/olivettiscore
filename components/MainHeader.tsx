@@ -1,12 +1,12 @@
 import Link from 'next/link'
 import { Award, LogIn, LogOut, User } from 'lucide-react'
 import SearchHeader from '@/components/SearchHeader'
-import { createClient } from '@/utils/supabase/server'
+import { createClient, getCurrentUser } from '@/utils/supabase/server'
 import { logout } from '@/app/login/actions'
 
 export default async function MainHeader() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
 
   let userPoints = 0
   if (user) {
