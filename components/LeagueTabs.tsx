@@ -340,7 +340,7 @@ export default function LeagueTabs({
                   const progressPct = Math.max(5, (player.goals / maxVal) * 100);
                   
                   return (
-                    <div key={player.id} className="space-y-1.5">
+                    <Link href={`/jogador/${player.id}`} key={player.id} className="block space-y-1.5 group">
                       <div className="flex items-center justify-between text-xs font-semibold">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span className="text-zinc-600 font-mono w-5">#{idx + 1}</span>
@@ -348,7 +348,7 @@ export default function LeagueTabs({
                             {getPosAbbr(player.position)}
                           </span>
                           <div className="truncate min-w-0">
-                            <p className="text-zinc-200 font-bold hover:text-indigo-400 truncate">{player.name}</p>
+                            <p className="text-zinc-200 font-bold group-hover:text-indigo-400 truncate transition-colors">{player.name}</p>
                             <p className="text-[10px] text-zinc-500 font-medium truncate">{player.teamName}</p>
                           </div>
                         </div>
@@ -362,7 +362,7 @@ export default function LeagueTabs({
                           style={{ width: `${progressPct}%` }}
                         />
                       </div>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
@@ -385,7 +385,7 @@ export default function LeagueTabs({
                   const progressPct = Math.max(5, (player.assists / maxVal) * 100);
 
                   return (
-                    <div key={player.id} className="space-y-1.5">
+                    <Link href={`/jogador/${player.id}`} key={player.id} className="block space-y-1.5 group">
                       <div className="flex items-center justify-between text-xs font-semibold">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span className="text-zinc-600 font-mono w-5">#{idx + 1}</span>
@@ -393,7 +393,7 @@ export default function LeagueTabs({
                             {getPosAbbr(player.position)}
                           </span>
                           <div className="truncate min-w-0">
-                            <p className="text-zinc-200 font-bold hover:text-purple-400 truncate">{player.name}</p>
+                            <p className="text-zinc-200 font-bold group-hover:text-purple-400 truncate transition-colors">{player.name}</p>
                             <p className="text-[10px] text-zinc-500 font-medium truncate">{player.teamName}</p>
                           </div>
                         </div>
@@ -407,7 +407,7 @@ export default function LeagueTabs({
                           style={{ width: `${progressPct}%` }}
                         />
                       </div>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
@@ -430,7 +430,7 @@ export default function LeagueTabs({
                   const progressPct = Math.max(5, (player.passes / maxVal) * 100);
 
                   return (
-                    <div key={player.id} className="space-y-1.5">
+                    <Link href={`/jogador/${player.id}`} key={player.id} className="block space-y-1.5 group">
                       <div className="flex items-center justify-between text-xs font-semibold">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span className="text-zinc-600 font-mono w-5">#{idx + 1}</span>
@@ -438,7 +438,7 @@ export default function LeagueTabs({
                             {getPosAbbr(player.position)}
                           </span>
                           <div className="truncate min-w-0">
-                            <p className="text-zinc-200 font-bold hover:text-amber-400 truncate">{player.name}</p>
+                            <p className="text-zinc-200 font-bold group-hover:text-amber-400 truncate transition-colors">{player.name}</p>
                             <p className="text-[10px] text-zinc-500 font-medium truncate">{player.teamName}</p>
                           </div>
                         </div>
@@ -452,7 +452,7 @@ export default function LeagueTabs({
                           style={{ width: `${progressPct}%` }}
                         />
                       </div>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
@@ -479,18 +479,18 @@ export default function LeagueTabs({
                   </h4>
                   <div className="space-y-3.5">
                     {statsSummary.topYellowCards.slice(0, 5).map((player, idx) => (
-                      <div key={player.id} className="flex items-center justify-between text-xs font-semibold">
+                      <Link href={`/jogador/${player.id}`} key={player.id} className="flex items-center justify-between text-xs font-semibold group">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="text-zinc-600 font-mono w-4">#{idx + 1}</span>
                           <div className="truncate min-w-0">
-                            <p className="text-zinc-200 font-bold hover:text-indigo-400 truncate">{player.name}</p>
+                            <p className="text-zinc-200 font-bold group-hover:text-indigo-400 truncate transition-colors">{player.name}</p>
                             <p className="text-[9px] text-zinc-550 truncate">{player.teamName}</p>
                           </div>
                         </div>
                         <span className="font-mono text-amber-400 font-black shrink-0 ml-1.5 bg-amber-500/5 px-2 py-0.5 border border-amber-500/20 rounded">
                           {player.yellowCards}
                         </span>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 </div>
@@ -503,18 +503,18 @@ export default function LeagueTabs({
                   </h4>
                   <div className="space-y-3.5">
                     {statsSummary.topRedCards.slice(0, 5).map((player, idx) => (
-                      <div key={player.id} className="flex items-center justify-between text-xs font-semibold">
+                      <Link href={`/jogador/${player.id}`} key={player.id} className="flex items-center justify-between text-xs font-semibold group">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="text-zinc-600 font-mono w-4">#{idx + 1}</span>
                           <div className="truncate min-w-0">
-                            <p className="text-zinc-200 font-bold hover:text-indigo-400 truncate">{player.name}</p>
+                            <p className="text-zinc-200 font-bold group-hover:text-indigo-400 truncate transition-colors">{player.name}</p>
                             <p className="text-[9px] text-zinc-550 truncate">{player.teamName}</p>
                           </div>
                         </div>
                         <span className="font-mono text-red-450 font-black shrink-0 ml-1.5 bg-red-500/5 px-2 py-0.5 border border-red-500/20 rounded">
                           {player.redCards}
                         </span>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 </div>
